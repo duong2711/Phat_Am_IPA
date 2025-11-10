@@ -140,9 +140,116 @@ h3 {
 }
 
 /* --- Phân màu theo bảng --- */
-#monophthongs { background-color: #fdf5e6; border: 2px solid #f39c12; }
-#diphthongs { background-color: #eafaf1; border: 2px solid #27ae60; }
-#consonants { background-color: #fdeaea; border: 2px solid #c0392b; }
+/* === [CẬP NHẬT] Thiết kế Tab và Vuốt Ngang cho Mobile === */
+
+/* Thanh điều khiển Tab */
+.tab-controls {
+    display: flex;
+    justify-content: space-around;
+    gap: 5px;
+    padding: 0 0 10px 0;
+    width: 100%;
+    margin-bottom: 5px;
+}
+.tab-button {
+    flex-grow: 1;
+    padding: 10px 5px;
+    border: none;
+    background-color: #ecf0f1;
+    color: #34495e;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.2s, color 0.2s;
+    font-size: 0.9em;
+}
+.tab-button.active {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Container cho phép cuộn ngang (Mobile only) */
+.ipa-tabs-container {
+    display: flex;
+    width: 100%;
+    overflow-x: hidden; /* Quan trọng: Ngăn cuộn tab container trên Desktop */
+    scroll-behavior: smooth;
+}
+
+/* Nội dung của từng tab */
+.ipa-tab-content {
+    min-width: 100%; /* Mỗi tab chiếm toàn bộ chiều rộng của container */
+    padding-bottom: 10px;
+    flex-shrink: 0; /* Ngăn không cho các tab bị co lại */
+}
+
+/* Ẩn các tiêu đề cấp h3/h2 trong tab content (vì đã có tiêu đề tab) */
+.ipa-tab-content h2, .ipa-tab-content h3 {
+    display: none;
+}
+
+/* Áp dụng lại thuộc tính màu cho ipa-section */
+.ipa-section#monophthongs-section { background-color: #fdf5e6; border: 2px solid #f39c12; }
+.ipa-section#diphthongs-section { background-color: #eafaf1; border: 2px solid #27ae60; }
+.ipa-section#consonants-section { background-color: #fdeaea; border: 2px solid #c0392b; }
+
+.ipa-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 5px; 
+    padding: 8px; 
+    border-radius: 8px;
+    margin-bottom: 0; /* Không cần margin-bottom ở đây nữa */
+}
+
+/* --- Tùy chỉnh ô --- */
+/* ... (Giữ nguyên .ipa-symbol) ... */
+
+
+/* === Điều chỉnh cho Tablet/Desktop (Min-width: 768px) === */
+@media (min-width: 768px) {
+    /* [QUAN TRỌNG] Trở lại bố cục cuộn dọc/2 cột cho Desktop */
+    /* ... (Giữ nguyên body grid và .ipa-chart, #guide-display heights) ... */
+
+    /* Loại bỏ/ẩn tính năng Tab trên Desktop */
+    .tab-controls {
+        display: none;
+    }
+    .ipa-tabs-container {
+        display: block; /* Trở lại flow bình thường */
+        overflow-x: visible; 
+    }
+    .ipa-tab-content {
+        min-width: auto;
+        padding-bottom: 15px;
+        flex-shrink: 1; 
+    }
+    .ipa-tab-content h2, .ipa-tab-content h3 {
+        display: block; /* Hiện lại tiêu đề trên Desktop */
+        text-align: left;
+    }
+    
+    /* Áp dụng lại hiển thị section cho desktop */
+    .ipa-section {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); 
+        gap: 12px; 
+        padding: 18px;
+        margin-bottom: 10px; /* Thêm lại margin cho các section */
+    }
+    
+    /* ... (Giữ nguyên các tùy chỉnh khác cho desktop) ... */
+}
+
+/* === Điều chỉnh cho Desktop Rộng (Min-width: 1025px) === */
+@media (min-width: 1025px) {
+    /* ... (Giữ nguyên các tùy chỉnh khác cho desktop rộng) ... */
+
+    .ipa-section {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+        gap: 20px; 
+        padding: 30px; 
+    }
+}
 
 /* --- Tùy chỉnh ô --- */
 .ipa-symbol {
