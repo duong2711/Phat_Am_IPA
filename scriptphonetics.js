@@ -1,34 +1,29 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- CẤU HÌNH SUPABASE ---
+    // --- CẤU HÌNH SUPABASE (GIỮ NGUYÊN) ---
     const SUPABASE_URL = 'https://habakuagkfubyzpucfzh.supabase.co'; 
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhYmFrdWFna2Z1Ynl6cHVjZnpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2ODU3NDYsImV4cCI6MjA3ODI2MTc0Nn0.xD8WGjCdPrTZS4HT8ftCszNM4f-cKgbMNBgYtAUf9sg'; 
     const AUDIO_BUCKET_NAME = 'audio_comments'; 
-    
-    // [FIX] Cấu hình Admin và LocalStorage
     const ADMIN_PASSWORD = 'admin'; 
-    const COMPLETION_STORAGE_KEY = 'ipa_completion_status';
-    
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     // ------------------------------------------
 
     const symbols = document.querySelectorAll('.ipa-symbol');
-    // [FIX] Lấy tất cả các container của icon hoàn thành
     const completionIcons = document.querySelectorAll('.completion-container'); 
     
-    // Lấy các phần tử DOM
     const vimeoPlayerContainer = document.getElementById('vimeo-player-container');
     const iframeTarget = document.getElementById('iframe-target');
     const videoPlayBtn = document.getElementById('video-play-btn');
     const videoPauseBtn = document.getElementById('video-pause-btn');
     const videoPlaceholder = document.getElementById('video-placeholder');
+    const guideTextElement = document.getElementById('guide-text'); 
 
     let mediaRecorder;
     let audioChunks = [];
-    let currentSymbol = ''; // Sẽ chứa ký tự IPA GỐC (ví dụ: 'ɪ', 'tʃ')
+    let currentSymbol = ''; 
     let recordedAudioBlob = null; 
-    let currentVideoSrc = null;
+    let currentVideoSrc = null; // Lưu SRC GỐC
 
     const commentSymbolDisplay = document.getElementById('comment-symbol-display');
     const commentsList = document.getElementById('comments-list');
@@ -39,49 +34,96 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordStatus = document.getElementById('record-status');
     const commentToggleHeader = document.getElementById('comment-toggle-header');
     const commentContentWrapper = document.getElementById('comment-content-wrapper');
-
-    // [LOGIC VIDEO VÀ NÚT BẤM ỔN ĐỊNH - KHÔNG THANH ĐIỀU KHIỂN]
     
-    // Hàm tạo iframe (Phát video)
-    function createIframe(src) {
+    // [HÀM MỚI] Dựa trên SRC gốc và trạng thái, tạo URL đầy đủ
+    function buildVimeoUrl(src, autoplay = '1') {
+        if (!src) return null;
+        
+        // 1. Loại bỏ các tham số hiện có (nếu có)
+        const baseUrl = src.split('?')[0];
+        const urlParams = new URLSearchParams(src.split('?')[1]);
+        const hParam = urlParams.get('h');
+
+        // 2. Tạo URL mới và áp dụng tham số
+        const videoUrl = new URL(baseUrl);
+        if (hParam) {
+             videoUrl.searchParams.set('h', hParam);
+        }
+
+        // Tham số điều khiển của bạn
+        videoUrl.searchParams.set('loop', '1');
+        videoUrl.searchParams.set('autoplay', autoplay); // '1' cho Play, '0' cho Pause/Stop
+        videoUrl.searchParams.set('controls', '0');
+        videoUrl.searchParams.set('title', '0');    
+        videoUrl.searchParams.set('byline', '0'); 
+        videoUrl.searchParams.set('api', '1');          // <--- THÊM THEO YÊU CẦU
+        videoUrl.searchParams.set('player_id', 'vimeo-ifr'); // <--- THÊM THEO YÊU CẦU
+        
+        return videoUrl.href;
+    }
+
+    // [HÀM THAY THẾ createIframe] Tạo hoặc cập nhật iframe
+    function loadOrUpdateIframe(src, autoplay = '1') {
         if (!src) return;
         
-        const videoUrl = new URL(src);
-        videoUrl.searchParams.set('loop', '1');
-        videoUrl.searchParams.set('autoplay', '1'); 
-        videoUrl.searchParams.set('controls', '0'); 
-        videoUrl.searchParams.set('title', '0');    
-        videoUrl.searchParams.set('byline', '0');   
-
-        iframeTarget.innerHTML = '';
-        const iframe = document.createElement('iframe');
-        iframe.src = videoUrl.href;
-        iframe.title = "Video hướng dẫn";
-        iframe.frameBorder = "0";
-        iframe.allow = "autoplay; fullscreen; picture-in-picture; web-share";
-        iframe.allowFullscreen = true;
-        iframeTarget.appendChild(iframe);
+        const finalUrl = buildVimeoUrl(src, autoplay);
+        
+        // Kiểm tra xem iframe đã tồn tại chưa
+        let iframe = iframeTarget.querySelector('iframe');
+        
+        if (!iframe) {
+            // Nếu chưa tồn tại, tạo mới
+            iframeTarget.innerHTML = ''; // Xóa placeholder
+            iframe = document.createElement('iframe');
+            iframe.title = "Video hướng dẫn";
+            iframe.frameBorder = "0";
+            iframe.allow = "autoplay; fullscreen; picture-in-picture; web-share";
+            iframe.allowFullscreen = true;
+            iframeTarget.appendChild(iframe);
+        }
+        
+        // Luôn cập nhật SRC để phản ánh trạng thái mới
+        iframe.src = finalUrl;
     }
-    
-    // Hàm xóa iframe (Dừng video)
-    function destroyIframe() {
-        iframeTarget.innerHTML = '';
+
+    // [HÀM THAY THẾ destroyIframe] Chỉ ẩn video và hiện placeholder
+    function hideVideoAndShowPlaceholder() {
+        // TÌM VÀ CẬP NHẬT iframe (để nó dừng phát - autoplay=0)
+        let iframe = iframeTarget.querySelector('iframe');
+        if (iframe && currentVideoSrc) {
+            // Cập nhật SRC để dừng video trong khi vẫn giữ thẻ
+            iframe.src = buildVimeoUrl(currentVideoSrc, '0'); 
+        } else {
+             // Nếu chưa có iframe, chỉ cần xóa nội dung và hiện placeholder
+             iframeTarget.innerHTML = '';
+        }
+        
         iframeTarget.appendChild(videoPlaceholder);
+        // Ẩn container chứa video
+        vimeoPlayerContainer.classList.add('video-hidden');
     }
 
     // Gắn sự kiện cho các nút Play/Pause
     videoPlayBtn.addEventListener('click', () => {
-        vimeoPlayerContainer.classList.remove('video-hidden'); 
-        createIframe(currentVideoSrc); 
-        videoPlayBtn.disabled = true;
-        videoPauseBtn.disabled = false;
+        // HÀNH ĐỘNG KHI NHẤN PLAY: TẢI LẠI VỚI autoplay=1
+        if (currentVideoSrc) {
+            vimeoPlayerContainer.classList.remove('video-hidden'); 
+            loadOrUpdateIframe(currentVideoSrc, '1'); // <--- BẮT ĐẦU PHÁT
+            videoPlayBtn.disabled = true;
+            videoPauseBtn.disabled = false;
+            videoPlaceholder.style.display = 'none'; // Ẩn placeholder
+        }
     });
     
     videoPauseBtn.addEventListener('click', () => {
-        destroyIframe(); 
-        vimeoPlayerContainer.classList.add('video-hidden'); 
-        videoPlayBtn.disabled = false;
-        videoPauseBtn.disabled = true;
+        // HÀNH ĐỘNG KHI NHẤN PAUSE TÙY CHỈNH: CẬP NHẬT SRC VỚI autoplay=0 (DỪNG)
+        if (currentVideoSrc) {
+            vimeoPlayerContainer.classList.remove('video-hidden'); 
+            loadOrUpdateIframe(currentVideoSrc, '0'); // <--- DỪNG PHÁT VÀ GIỮ IFRAME
+            videoPlayBtn.disabled = false;
+            videoPauseBtn.disabled = true;
+            videoPlaceholder.style.display = 'block'; // Hiển thị placeholder
+        }
     });
 
     // Vô hiệu hóa nút bấm ngay từ đầu và ẩn video
@@ -89,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     videoPauseBtn.disabled = true;
     vimeoPlayerContainer.classList.add('video-hidden');
 
-    // Hàm chuẩn hóa tên ký tự cho Supabase Storage (Quan trọng để tránh lỗi upload)
+    // Hàm chuẩn hóa tên ký tự cho Supabase Storage (GIỮ NGUYÊN)
     function getSafeSymbolName(symbol) {
         let safeName = symbol.replace(/:/g, 'L');
         
@@ -118,33 +160,36 @@ document.addEventListener('DOMContentLoaded', () => {
     symbols.forEach(symbol => {
         symbol.addEventListener('click', () => {
             
-            destroyIframe();
-            
+            // hideVideoAndShowPlaceholder(); // KHÔNG CẦN ẨN MÀ CHỈ DỪNG/TẢI MỚI
+
             const videoSrc = symbol.dataset.videoSrc;
-            currentVideoSrc = videoSrc; 
+            currentVideoSrc = videoSrc; // Lưu trữ src GỐC
+            
+            const guideText = symbol.dataset.guide;
 
             if (videoSrc) {
+                // Tải video MỚI VÀ PHÁT (autoplay=1)
                 vimeoPlayerContainer.classList.remove('video-hidden');
-                createIframe(videoSrc);
+                loadOrUpdateIframe(currentVideoSrc, '1'); 
+                videoPlaceholder.style.display = 'none'; // Ẩn placeholder khi phát
                 
-                videoPlayBtn.disabled = false; 
-                videoPauseBtn.disabled = false; 
+                videoPlayBtn.disabled = true; 
+                videoPauseBtn.disabled = false;
+                
+                guideTextElement.textContent = guideText || "Chưa có hướng dẫn cho ký tự này.";
+                
             } else {
-                vimeoPlayerContainer.classList.add('video-hidden');
-            }
-
-            const guideText = symbol.dataset.guide;
-            const guideTextElement = document.getElementById('guide-text'); 
-            if (guideText) {
-                guideTextElement.textContent = guideText;
-            } else {
-                guideTextElement.textContent = "Chưa có hướng dẫn cho ký tự này.";
+                // XỬ LÝ KHI KHÔNG CÓ VIDEO
+                hideVideoAndShowPlaceholder(); // Ẩn hoàn toàn nếu không có SRC
+                guideTextElement.textContent = guideText || "Chưa có hướng dẫn cho ký tự này.";
+                
+                videoPlayBtn.disabled = true; 
+                videoPauseBtn.disabled = true;
             }
 
             symbols.forEach(s => s.classList.remove('active'));
             symbol.classList.add('active');
             
-            // Lưu ký tự GỐC vào currentSymbol
             const originalSymbol = symbol.dataset.symbol; 
             currentSymbol = originalSymbol; 
             commentSymbolDisplay.textContent = originalSymbol;
@@ -162,58 +207,101 @@ document.addEventListener('DOMContentLoaded', () => {
         commentContentWrapper.classList.toggle('collapsed');
     });
 
-    // --- LOGIC HOÀN THÀNH KÝ TỰ (CHỨC NĂNG MỚI) ---
+    // --- LOGIC HOÀN THÀNH KÝ TỰ (GIỮ NGUYÊN) ---
+    async function loadCompletionStatus() {
+        let userId = localStorage.getItem('user_id');
+        if (!userId) {
+            userId = 'anonymous_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('user_id', userId);
+            console.log("Đã tạo User ID mới cho thiết bị này: " + userId);
+        }
+        
+        try {
+            const { data, error } = await sb
+                .from('ipa_completions')
+                .select('symbol, completed')
+                .eq('user_id', userId);
 
-    // 1. Hàm tải trạng thái hoàn thành từ LocalStorage
-    function loadCompletionStatus() {
-        const status = JSON.parse(localStorage.getItem(COMPLETION_STORAGE_KEY)) || {};
-        symbols.forEach(symbol => {
-            const ipaKey = symbol.dataset.symbol;
-            if (status[ipaKey]) {
-                symbol.classList.add('completed');
-                const icon = symbol.querySelector('.completion-status-icon');
-                if (icon) icon.textContent = '✔';
-            }
-        });
+            if (error) throw error;
+
+            symbols.forEach(symbolElement => {
+                const ipaKey = symbolElement.dataset.symbol;
+                const match = data.find(item => item.symbol === ipaKey && item.completed);
+                const iconElement = symbolElement.querySelector('.completion-status-icon');
+
+                symbolElement.classList.remove('completed');
+                if (iconElement) iconElement.textContent = '☐';
+                
+                if (match) {
+                    symbolElement.classList.add('completed');
+                    if (iconElement) iconElement.textContent = '✔';
+                }
+            });
+
+        } catch (e) {
+            console.error('Lỗi khi tải trạng thái hoàn thành từ Supabase:', e);
+        }
+        
+        localStorage.removeItem('ipa_completion_status');
     }
 
-    // 2. Hàm lưu trạng thái và đổi màu
+    async function saveCompletionStatus(symbol, isCompleted) {
+        const userId = localStorage.getItem('user_id');
+        if (!userId) {
+            console.error("Không có User ID. Không thể lưu trạng thái hoàn thành.");
+            return;
+        }
+        
+        const statusData = {
+            user_id: userId,
+            symbol: symbol,
+            completed: isCompleted,
+            updated_at: new Date().toISOString()
+        };
+
+        try {
+            const { error } = await sb
+                .from('ipa_completions')
+                .upsert(statusData, { onConflict: 'user_id, symbol' }); 
+
+            if (error) {
+                console.error('Lỗi khi lưu trạng thái hoàn thành vào Supabase:', error);
+            }
+        } catch (e) {
+            console.error('Lỗi ngoại lệ khi lưu trạng thái hoàn thành:', e);
+        }
+    }
+
     function toggleCompletion(symbolElement) {
         const ipaKey = symbolElement.dataset.symbol;
-        let status = JSON.parse(localStorage.getItem(COMPLETION_STORAGE_KEY)) || {};
-        
         const isCompleted = symbolElement.classList.contains('completed');
         const icon = symbolElement.querySelector('.completion-status-icon');
-
-        if (isCompleted) {
-            // Yêu cầu mật khẩu Admin để HỦY HOÀN THÀNH
-            const enteredPassword = prompt("Vui lòng nhập mật khẩu Admin để hủy đánh dấu hoàn thành:");
-            if (enteredPassword === ADMIN_PASSWORD) {
-                symbolElement.classList.remove('completed');
-                delete status[ipaKey];
-                if (icon) icon.textContent = '☐';
-            } else if (enteredPassword !== null) {
-                alert("Mật khẩu không đúng.");
-            }
-        } else {
-            // Yêu cầu mật khẩu Admin để ĐÁNH DẤU HOÀN THÀNH
-            const enteredPassword = prompt("Vui lòng nhập mật khẩu Admin để đánh dấu hoàn thành:");
-            if (enteredPassword === ADMIN_PASSWORD) {
+        
+        let action = isCompleted ? "hủy đánh dấu hoàn thành" : "đánh dấu hoàn thành";
+        
+        const enteredPassword = prompt(`Vui lòng nhập mật khẩu Admin để ${action} cho ký tự /${ipaKey}/:`);
+        
+        if (enteredPassword === ADMIN_PASSWORD) {
+            const newCompletedState = !isCompleted;
+            
+            if (newCompletedState) {
                 symbolElement.classList.add('completed');
-                status[ipaKey] = true;
                 if (icon) icon.textContent = '✔';
-            } else if (enteredPassword !== null) {
-                alert("Mật khẩu không đúng.");
+            } else {
+                symbolElement.classList.remove('completed');
+                if (icon) icon.textContent = '☐';
             }
-        }
+            
+            saveCompletionStatus(ipaKey, newCompletedState);
 
-        localStorage.setItem(COMPLETION_STORAGE_KEY, JSON.stringify(status));
+        } else if (enteredPassword !== null) {
+            alert("Mật khẩu không đúng.");
+        }
     }
 
-    // 3. Gắn sự kiện cho các biểu tượng hoàn thành
     completionIcons.forEach(iconContainer => {
         iconContainer.addEventListener('click', (e) => {
-            e.stopPropagation(); // Ngăn sự kiện click lan truyền lên thẻ .ipa-symbol
+            e.stopPropagation();
             const parentSymbol = iconContainer.closest('.ipa-symbol');
             if (parentSymbol) {
                 toggleCompletion(parentSymbol);
@@ -221,12 +309,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Tải trạng thái khi trang load
     loadCompletionStatus(); 
 
-    // --- CÁC HÀM XỬ LÝ GHI ÂM/SUPABASE ---
+    // --- CÁC HÀM XỬ LÝ GHI ÂM/SUPABASE (GIỮ NGUYÊN) ---
 
-    // 1. BẮT ĐẦU GHI ÂM (Giữ nguyên)
+    // 1. BẮT ĐẦU GHI ÂM
     recordButton.addEventListener('click', async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -261,21 +348,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 2. DỪNG GHI ÂM (Giữ nguyên)
+    // 2. DỪNG GHI ÂM
     stopButton.addEventListener('click', () => {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
         }
     });
 
-    // 3. GỬI BÌNH LUẬN VÀ UPLOAD (Đã FIX lỗi NULL VALUE)
+    // 3. GỬI BÌNH LUẬN VÀ UPLOAD
     sendCommentButton.addEventListener('click', async () => {
         if (!recordedAudioBlob) {
             alert("Bạn chưa ghi âm.");
             return;
         }
 
-        // --- LOGIC KIỂM TRA KÍCH THƯỚC FILE (500 KB) ---
         const MAX_FILE_SIZE_BYTES = 500 * 1024; 
         
         if (recordedAudioBlob.size > MAX_FILE_SIZE_BYTES) {
@@ -284,20 +370,16 @@ document.addEventListener('DOMContentLoaded', () => {
             sendCommentButton.disabled = false;
             return;
         }
-        // ----------------------------------------------------------
 
         sendCommentButton.disabled = true;
         recordStatus.textContent = "Đang tải lên Supabase, vui lòng chờ...";
         let audioURL = null;
         let audioPath = null;
         
-        // currentSymbol đang giữ ký tự GỐC (ví dụ: 'ɪ')
         const safeSymbolName = getSafeSymbolName(currentSymbol); 
 
         try {
-            // Bước A: Tải file lên Supabase Storage
             const uniqueFileName = `${Date.now()}.webm`;
-            // TẠO ĐƯỜNG DẪN DÙNG TÊN ĐÃ CHUẨN HÓA LÀM THƯ MỤC
             audioPath = `${safeSymbolName}/${uniqueFileName}`; 
             
             const { error: uploadError } = await sb.storage
@@ -309,7 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (uploadError) throw uploadError;
 
-            // [FIX LỖI NULL VALUE] Xây dựng URL công khai thủ công
             const supabaseRef = SUPABASE_URL.split('://')[1].split('.')[0]; 
             audioURL = `https://${supabaseRef}.supabase.co/storage/v1/object/public/${AUDIO_BUCKET_NAME}/${audioPath}`;
 
@@ -317,13 +398,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error("Lỗi: Không thể xây dựng URL hợp lệ.");
             }
 
-            // Bước C: Lưu thông tin vào Supabase Database
             const { error: dbError } = await sb
                 .from('comments')
                 .insert([
                     { 
-                        symbol: currentSymbol, // LƯU KÝ TỰ GỐC
-                        audio_url: audioURL, // URL thủ công
+                        symbol: currentSymbol, 
+                        audio_url: audioURL,
                         created_at: new Date().toISOString()
                     }
                 ]);
@@ -339,21 +419,20 @@ document.addEventListener('DOMContentLoaded', () => {
             recordStatus.textContent = `Gửi thất bại: ${err.message}`;
             sendCommentButton.disabled = false; 
             
-            // Xóa file đã upload nếu DB bị lỗi
             if (audioPath) {
                  sb.storage.from(AUDIO_BUCKET_NAME).remove([audioPath]);
             }
         }
     });
 
-    // 4. HÀM TẢI BÌNH LUẬN TỪ SUPABASE (Giữ nguyên)
+    // 4. HÀM TẢI BÌNH LUẬN TỪ SUPABASE
     async function loadComments(symbol) {
         commentsList.innerHTML = 'Đang tải bình luận...'; 
         try {
             const { data, error } = await sb
                 .from('comments')
                 .select('*')
-                .eq('symbol', symbol) // Truy vấn bằng ký tự GỐC
+                .eq('symbol', symbol)
                 .order('created_at', { ascending: false }); 
             
             if (error) throw error;
@@ -375,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 5. HÀM HIỂN THỊ 1 BÌNH LUẬN (Giữ nguyên)
+    // 5. HÀM HIỂN THỊ 1 BÌNH LUẬN
     function displayComment(data) {
         const commentDiv = document.createElement('div');
         commentDiv.className = 'comment-item';
@@ -405,7 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 6. HÀM RESET FORM (Giữ nguyên)
+    // 6. HÀM RESET FORM
     function resetCommentForm() {
         recordingPreview.style.display = 'none';
         recordingPreview.src = '';
