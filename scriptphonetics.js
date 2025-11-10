@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let currentUserId = null; 
     let currentEmail = ''; 
+    let holdTimer = null; // Thêm biến này
 
     // --- LOGIC XÁC THỰC (ĐĂNG NHẬP BẮT BUỘC) ---
     async function handleLogin(e) {
@@ -381,15 +382,54 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Đã thay đổi logic để yêu cầu click và giữ 3 giây:
     completionIcons.forEach(iconContainer => {
-        iconContainer.addEventListener('click', (e) => {
+        
+        const parentSymbol = iconContainer.closest('.ipa-symbol');
+        if (!parentSymbol) return;
+
+        // Bắt đầu giữ chuột
+        iconContainer.addEventListener('mousedown', (e) => {
             e.stopPropagation();
-            const parentSymbol = iconContainer.closest('.ipa-symbol');
-            if (parentSymbol) {
+            
+            // Clear bất kỳ timer cũ nào nếu có lỗi
+            if (holdTimer) clearTimeout(holdTimer);
+
+            // Thiết lập timer 3 giây (3000ms)
+            holdTimer = setTimeout(() => {
+                holdTimer = null; // Reset timer sau khi kích hoạt
+                
+                // Kích hoạt logic hoàn thành chỉ khi giữ đủ 3 giây
                 toggleCompletion(parentSymbol);
+                
+                // Tạm thời vô hiệu hóa con trỏ để tránh kích hoạt lại ngay lập tức
+                iconContainer.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    iconContainer.style.pointerEvents = 'auto';
+                }, 500); // 0.5 giây chờ để tránh double-click/nhả chuột nhanh
+                
+            }, 3000); // 3 giây
+        });
+
+        // Nhả chuột (ngắt quá trình giữ)
+        iconContainer.addEventListener('mouseup', (e) => {
+            e.stopPropagation();
+            if (holdTimer) {
+                clearTimeout(holdTimer);
+                holdTimer = null;
+            }
+        });
+
+        // Rê chuột ra khỏi khu vực (ngắt quá trình giữ)
+        iconContainer.addEventListener('mouseleave', (e) => {
+            e.stopPropagation();
+            if (holdTimer) {
+                clearTimeout(holdTimer);
+                holdTimer = null;
             }
         });
     });
+
 
     // --- CÁC HÀM XỬ LÝ GHI ÂM/SUPABASE ---
 
