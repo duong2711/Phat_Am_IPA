@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let audioChunks = [];
     let currentSymbol = ''; 
     let recordedAudioBlob = null; 
-    let currentVideoSrc = null; // Lưu SRC GỐC
+    let currentVideoSrc = null; 
 
     const commentSymbolDisplay = document.getElementById('comment-symbol-display');
     const commentsList = document.getElementById('comments-list');
@@ -34,25 +34,111 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordStatus = document.getElementById('record-status');
     const commentToggleHeader = document.getElementById('comment-toggle-header');
     const commentContentWrapper = document.getElementById('comment-content-wrapper');
+    const authContainer = document.getElementById('auth-container');
+    const authStatus = document.getElementById('auth-status');
+    const loginForm = document.getElementById('login-form');
+    const logoutBtn = document.getElementById('logout-btn');
+    const ipaChart = document.querySelector('.ipa-chart'); 
+    const guideDisplay = document.getElementById('guide-display'); 
     
-    // [HÀM MỚI] Dựa trên SRC gốc và trạng thái, tạo URL đầy đủ
+    let currentUserId = null; 
+    let currentEmail = ''; 
+
+    // --- LOGIC XÁC THỰC (ĐĂNG NHẬP BẮT BUỘC) ---
+    async function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
+        authStatus.textContent = 'Đang đăng nhập...';
+        
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        
+        if (error) {
+            if (error.message.includes('Invalid login credentials')) {
+                 authStatus.textContent = 'Đăng nhập thất bại: Tài khoản hoặc mật khẩu không đúng.';
+            } else if (error.message.includes('Email not confirmed')) {
+                 authStatus.textContent = 'Lỗi: Email chưa được xác thực. Vui lòng kiểm tra email của bạn.';
+            } else {
+                 authStatus.textContent = `Lỗi đăng nhập: ${error.message}`;
+            }
+            return;
+        }
+
+        if (data.user) {
+            authStatus.textContent = `Đăng nhập thành công! Đang tải dữ liệu...`;
+        }
+    }
+
+    async function handleLogout() {
+        await sb.auth.signOut();
+    }
+
+    function updateCommentFormVisibility(user) {
+        const commentForm = document.getElementById('new-comment-form');
+        if (commentForm) {
+            commentForm.style.display = user ? 'flex' : 'none';
+        }
+        recordStatus.textContent = user ? '' : 'Vui lòng đăng nhập để gửi ghi âm.';
+    }
+
+
+    function updateUIForUser(user) {
+        if (user) {
+            currentUserId = user.id;
+            currentEmail = user.email;
+            authContainer.style.display = 'none';
+            logoutBtn.style.display = 'block';
+            authStatus.textContent = `Đã đăng nhập: ${user.email} (ID: ${user.id.substring(0, 8)}...)`;
+            
+            ipaChart.style.display = 'grid'; 
+            guideDisplay.style.display = 'flex'; 
+
+            // Bổ sung để tải trạng thái hoàn thành ngay lập tức
+            loadCompletionStatus(user);
+
+        } else {
+            currentUserId = null;
+            currentEmail = '';
+            authContainer.style.display = 'block';
+            logoutBtn.style.display = 'none';
+            authStatus.textContent = 'Email: hv1@gmail.com, Mật khẩu: hv1';
+
+            ipaChart.style.display = 'none'; 
+            guideDisplay.style.display = 'none'; 
+            hideVideoAndShowPlaceholder(); 
+        }
+        
+        updateCommentFormVisibility(user); 
+    }
+
+    sb.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
+             updateUIForUser(session?.user);
+        }
+    });
+
+    loginForm.addEventListener('submit', handleLogin);
+    logoutBtn.addEventListener('click', handleLogout);
+
+    // --- KẾT THÚC LOGIC XÁC THỰC ---
+
+
+    // [HÀM VIDEO CŨ] 
     function buildVimeoUrl(src, autoplay = '1') {
         if (!src) return null;
         
-        // 1. Loại bỏ các tham số hiện có (nếu có)
         const baseUrl = src.split('?')[0];
         const urlParams = new URLSearchParams(src.split('?')[1]);
         const hParam = urlParams.get('h');
 
-        // 2. Tạo URL mới và áp dụng tham số
         const videoUrl = new URL(baseUrl);
         if (hParam) {
              videoUrl.searchParams.set('h', hParam);
         }
 
-        // Tham số điều khiển của bạn
         videoUrl.searchParams.set('loop', '1');
-        videoUrl.searchParams.set('autoplay', autoplay); // '1' cho Play, '0' cho Pause/Stop
+        videoUrl.searchParams.set('autoplay', autoplay); 
         videoUrl.searchParams.set('controls', '0');
         videoUrl.searchParams.set('title', '0');    
         videoUrl.searchParams.set('byline', '0'); 
@@ -62,18 +148,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return videoUrl.href;
     }
 
-    // [HÀM THAY THẾ createIframe] Tạo hoặc cập nhật iframe
     function loadOrUpdateIframe(src, autoplay = '1') {
         if (!src) return;
         
         const finalUrl = buildVimeoUrl(src, autoplay);
         
-        // Kiểm tra xem iframe đã tồn tại chưa
         let iframe = iframeTarget.querySelector('iframe');
         
         if (!iframe) {
-            // Nếu chưa tồn tại, tạo mới
-            iframeTarget.innerHTML = ''; // Xóa placeholder
+            iframeTarget.innerHTML = ''; 
             iframe = document.createElement('iframe');
             iframe.title = "Video hướng dẫn";
             iframe.frameBorder = "0";
@@ -82,56 +165,45 @@ document.addEventListener('DOMContentLoaded', () => {
             iframeTarget.appendChild(iframe);
         }
         
-        // Luôn cập nhật SRC để phản ánh trạng thái mới
         iframe.src = finalUrl;
     }
 
-    // [HÀM THAY THẾ destroyIframe] Chỉ ẩn video và hiện placeholder
     function hideVideoAndShowPlaceholder() {
-        // TÌM VÀ CẬP NHẬT iframe (để nó dừng phát - autoplay=0)
         let iframe = iframeTarget.querySelector('iframe');
         if (iframe && currentVideoSrc) {
-            // Cập nhật SRC để dừng video trong khi vẫn giữ thẻ
             iframe.src = buildVimeoUrl(currentVideoSrc, '0'); 
         } else {
-             // Nếu chưa có iframe, chỉ cần xóa nội dung và hiện placeholder
              iframeTarget.innerHTML = '';
         }
         
         iframeTarget.appendChild(videoPlaceholder);
-        // Ẩn container chứa video
         vimeoPlayerContainer.classList.add('video-hidden');
     }
 
-    // Gắn sự kiện cho các nút Play/Pause
     videoPlayBtn.addEventListener('click', () => {
-        // HÀNH ĐỘNG KHI NHẤN PLAY: TẢI LẠI VỚI autoplay=1
         if (currentVideoSrc) {
             vimeoPlayerContainer.classList.remove('video-hidden'); 
-            loadOrUpdateIframe(currentVideoSrc, '1'); // <--- BẮT ĐẦU PHÁT
+            loadOrUpdateIframe(currentVideoSrc, '1'); 
             videoPlayBtn.disabled = true;
             videoPauseBtn.disabled = false;
-            videoPlaceholder.style.display = 'none'; // Ẩn placeholder
+            videoPlaceholder.style.display = 'none'; 
         }
     });
     
     videoPauseBtn.addEventListener('click', () => {
-        // HÀNH ĐỘNG KHI NHẤN PAUSE TÙY CHỈNH: CẬP NHẬT SRC VỚI autoplay=0 (DỪNG)
         if (currentVideoSrc) {
             vimeoPlayerContainer.classList.remove('video-hidden'); 
-            loadOrUpdateIframe(currentVideoSrc, '0'); // <--- DỪNG PHÁT VÀ GIỮ IFRAME
+            loadOrUpdateIframe(currentVideoSrc, '0'); 
             videoPlayBtn.disabled = false;
             videoPauseBtn.disabled = true;
-            videoPlaceholder.style.display = 'block'; // Hiển thị placeholder
+            videoPlaceholder.style.display = 'block'; 
         }
     });
 
-    // Vô hiệu hóa nút bấm ngay từ đầu và ẩn video
     videoPlayBtn.disabled = true;
     videoPauseBtn.disabled = true;
     vimeoPlayerContainer.classList.add('video-hidden');
 
-    // Hàm chuẩn hóa tên ký tự cho Supabase Storage (GIỮ NGUYÊN)
     function getSafeSymbolName(symbol) {
         let safeName = symbol.replace(/:/g, 'L');
         
@@ -160,26 +232,28 @@ document.addEventListener('DOMContentLoaded', () => {
     symbols.forEach(symbol => {
         symbol.addEventListener('click', () => {
             
+            if (ipaChart.style.display === 'none') {
+                 alert("Vui lòng đăng nhập để xem hướng dẫn phát âm.");
+                 return;
+            }
+
             const videoSrc = symbol.dataset.videoSrc;
-            currentVideoSrc = videoSrc; // Lưu trữ src GỐC
+            currentVideoSrc = videoSrc; 
             
             const guideText = symbol.dataset.guide;
 
             if (videoSrc) {
-                // [THAY ĐỔI] Tải video MỚI VÀ DỪNG (autoplay=0)
                 vimeoPlayerContainer.classList.remove('video-hidden');
-                loadOrUpdateIframe(currentVideoSrc, '0'); // <-- ĐẢM BẢO KHÔNG TỰ CHẠY
-                videoPlaceholder.style.display = 'block'; // Hiển thị placeholder
-
-                // Cho phép người dùng bấm Play
-                videoPlayBtn.disabled = false; 
-                videoPauseBtn.disabled = true; // Nút Pause vô hiệu hóa lúc này
+                loadOrUpdateIframe(currentVideoSrc, '1'); 
+                videoPlaceholder.style.display = 'none'; 
+                
+                videoPlayBtn.disabled = true; 
+                videoPauseBtn.disabled = false;
                 
                 guideTextElement.textContent = guideText || "Chưa có hướng dẫn cho ký tự này.";
                 
             } else {
-                // XỬ LÝ KHI KHÔNG CÓ VIDEO
-                hideVideoAndShowPlaceholder();
+                hideVideoAndShowPlaceholder(); 
                 guideTextElement.textContent = guideText || "Chưa có hướng dẫn cho ký tự này.";
                 
                 videoPlayBtn.disabled = true; 
@@ -196,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
             commentToggleHeader.classList.remove('collapsed');
             commentContentWrapper.classList.remove('collapsed');
 
-            loadComments(currentSymbol);
+            loadComments(currentSymbol); 
             resetCommentForm();
         });
     });
@@ -206,32 +280,20 @@ document.addEventListener('DOMContentLoaded', () => {
         commentContentWrapper.classList.toggle('collapsed');
     });
 
-    // --- LOGIC HOÀN THÀNH KÝ TỰ (ĐÃ SỬA ĐỂ DÙNG USER ID ỔN ĐỊNH) ---
-    async function loadCompletionStatus() {
-        let userId = localStorage.getItem('user_id');
-        
-        // [THAY ĐỔI] Nếu chưa có User ID ổn định, yêu cầu người dùng nhập
-        if (!userId || userId.startsWith('anonymous_')) {
-            let inputId = prompt("Vui lòng nhập một **TÊN NGƯỜI DÙNG** (ví dụ: 'nguyenvana') để lưu và đồng bộ trạng thái hoàn thành của bạn trên mọi thiết bị:");
-            
-            if (inputId) {
-                userId = inputId.toLowerCase().trim(); // Chuẩn hóa ID
-                localStorage.setItem('user_id', userId);
-                alert(`Trạng thái hoàn thành của bạn sẽ được lưu với ID: ${userId}`);
-            } else {
-                // Nếu người dùng không nhập, quay lại chế độ ẩn danh (không đồng bộ)
-                userId = 'anonymous_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('user_id', userId);
-                console.log("Đã tạo User ID ẩn danh mới cho thiết bị này: " + userId);
-            }
+    // --- LOGIC HOÀN THÀNH KÝ TỰ ---
+    
+    async function loadCompletionStatus(user) {
+        if (!user) {
+            symbols.forEach(symbolElement => {
+                symbolElement.classList.remove('completed');
+                const iconElement = symbolElement.querySelector('.completion-status-icon');
+                if (iconElement) iconElement.textContent = '☐';
+            });
+            return;
         }
         
-        if (userId.startsWith('anonymous_')) {
-            console.log("Đang ở chế độ ẩn danh. Trạng thái không đồng bộ.");
-        } else {
-            console.log("Sử dụng User ID ổn định: " + userId);
-        }
-        
+        const userId = user.id;
+
         try {
             const { data, error } = await sb
                 .from('ipa_completions')
@@ -255,15 +317,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         } catch (e) {
-            console.error('Lỗi khi tải trạng thái hoàn thành từ Supabase:', e);
+            console.error('Lỗi khi tải trạng thái hoàn thành từ Supabase (Kiểm tra RLS SELECT và cột user_id trên ipa_completions):', e);
         }
     }
 
     async function saveCompletionStatus(symbol, isCompleted) {
-        const userId = localStorage.getItem('user_id');
-        // [THAY ĐỔI] Ngăn việc lưu nếu User ID là ID ẩn danh (không đồng bộ)
-        if (!userId || userId.startsWith('anonymous_')) {
-            alert("Để lưu trạng thái hoàn thành, bạn cần có **TÊN NGƯỜI DÙNG** ổn định. Vui lòng tải lại trang để đăng nhập tên người dùng.");
+        const userId = currentUserId; 
+        
+        if (!userId) {
+            alert("Vui lòng đăng nhập để đánh dấu hoàn thành!");
             return;
         }
         
@@ -280,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .upsert(statusData, { onConflict: 'user_id, symbol' }); 
 
             if (error) {
-                console.error('Lỗi khi lưu trạng thái hoàn thành vào Supabase:', error);
+                console.error('Lỗi khi lưu trạng thái hoàn thành vào Supabase (Kiểm tra chính sách RLS UPDATE/INSERT trên ipa_completions):', error);
             }
         } catch (e) {
             console.error('Lỗi ngoại lệ khi lưu trạng thái hoàn thành:', e);
@@ -291,6 +353,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const ipaKey = symbolElement.dataset.symbol;
         const isCompleted = symbolElement.classList.contains('completed');
         const icon = symbolElement.querySelector('.completion-status-icon');
+
+        if (!currentUserId) {
+            alert("Vui lòng đăng nhập để đánh dấu hoàn thành!");
+            return;
+        }
         
         let action = isCompleted ? "hủy đánh dấu hoàn thành" : "đánh dấu hoàn thành";
         
@@ -324,12 +391,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    loadCompletionStatus(); 
-
-    // --- CÁC HÀM XỬ LÝ GHI ÂM/SUPABASE (GIỮ NGUYÊN) ---
+    // --- CÁC HÀM XỬ LÝ GHI ÂM/SUPABASE ---
 
     // 1. BẮT ĐẦU GHI ÂM
     recordButton.addEventListener('click', async () => {
+        if (!currentUserId) {
+             alert("Vui lòng đăng nhập để gửi ghi âm.");
+             return;
+        }
+
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -370,8 +440,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 3. GỬI BÌNH LUẬN VÀ UPLOAD
+    // 3. GỬI ghi âm VÀ UPLOAD
     sendCommentButton.addEventListener('click', async () => {
+        if (!currentUserId) {
+            alert("Vui lòng đăng nhập để gửi ghi âm.");
+            return;
+        }
+        
         if (!recordedAudioBlob) {
             alert("Bạn chưa ghi âm.");
             return;
@@ -394,9 +469,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const safeSymbolName = getSafeSymbolName(currentSymbol); 
 
         try {
-            const uniqueFileName = `${Date.now()}.webm`;
+            const uniqueFileName = `${currentUserId.substring(0, 8)}_${Date.now()}.webm`; 
             audioPath = `${safeSymbolName}/${uniqueFileName}`; 
             
+            // 1. Tải file lên Storage
             const { error: uploadError } = await sb.storage
                 .from(AUDIO_BUCKET_NAME)
                 .upload(audioPath, recordedAudioBlob, {
@@ -406,6 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (uploadError) throw uploadError;
 
+            // Lấy URL công khai
             const supabaseRef = SUPABASE_URL.split('://')[1].split('.')[0]; 
             audioURL = `https://${supabaseRef}.supabase.co/storage/v1/object/public/${AUDIO_BUCKET_NAME}/${audioPath}`;
 
@@ -413,12 +490,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error("Lỗi: Không thể xây dựng URL hợp lệ.");
             }
 
+            // 2. Chèn URL vào DB
             const { error: dbError } = await sb
                 .from('comments')
                 .insert([
                     { 
                         symbol: currentSymbol, 
                         audio_url: audioURL,
+                        user_id: currentUserId, 
                         created_at: new Date().toISOString()
                     }
                 ]);
@@ -430,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadComments(currentSymbol); 
 
         } catch (err) {
-            console.error("Lỗi khi gửi bình luận:", err.message);
+            console.error("Lỗi khi gửi ghi âm (Kiểm tra RLS INSERT và cột user_id trên comments):", err.message);
             recordStatus.textContent = `Gửi thất bại: ${err.message}`;
             sendCommentButton.disabled = false; 
             
@@ -440,9 +519,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 4. HÀM TẢI BÌNH LUẬN TỪ SUPABASE
+    // 4. HÀM TẢI ghi âm TỪ SUPABASE (Đã bỏ chặn kiểm tra đăng nhập)
     async function loadComments(symbol) {
-        commentsList.innerHTML = 'Đang tải bình luận...'; 
+        
+        if (!symbol) return; 
+
+        commentsList.innerHTML = 'Đang tải ghi âm...'; 
+        
+        // Hiển thị cảnh báo gửi, nhưng vẫn cho phép tải
+        if (!currentUserId) {
+            commentsList.innerHTML = '<p>ghi âm đang tải (Vui lòng đăng nhập để gửi).</p>';
+        }
+
         try {
             const { data, error } = await sb
                 .from('comments')
@@ -455,7 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
             commentsList.innerHTML = ''; 
             
             if (data.length === 0) {
-                commentsList.innerHTML = '<p>Chưa có bình luận nào cho ký tự này.</p>';
+                commentsList.innerHTML = '<p>Chưa có ghi âm nào. Practice makes perfect</p>';
                 return;
             }
 
@@ -464,15 +552,26 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         } catch (err) {
-            console.error("Lỗi khi tải bình luận:", err.message);
-            commentsList.innerHTML = '<p>Không thể tải bình luận.</p>';
+            console.error("Lỗi khi tải ghi âm:", err.message);
+            commentsList.innerHTML = '<p>Không thể tải ghi âm. Kiểm tra RLS SELECT trên comments.</p>';
         }
     }
 
-    // 5. HÀM HIỂN THỊ 1 BÌNH LUẬN
+    // 5. HÀM HIỂN THỊ 1 ghi âm (Đã kiểm tra URL)
     function displayComment(data) {
         const commentDiv = document.createElement('div');
         commentDiv.className = 'comment-item';
+
+        const senderInfo = document.createElement('div');
+        senderInfo.className = 'comment-sender';
+        
+        let senderDisplay = 'Ẩn danh';
+        if (data.user_id) {
+             senderDisplay = `Người dùng: ID ${data.user_id.substring(0, 8)}...`; 
+        }
+        senderInfo.textContent = senderDisplay;
+        commentDiv.appendChild(senderInfo);
+
 
         if (data.text && data.text.trim() !== "") {
             const textEl = document.createElement('p');
@@ -480,11 +579,22 @@ document.addEventListener('DOMContentLoaded', () => {
             commentDiv.appendChild(textEl);
         }
 
+        // [QUAN TRỌNG] Logic hiển thị audio
         if (data.audio_url) {
             const audioEl = document.createElement('audio');
             audioEl.controls = true;
-            audioEl.src = data.audio_url;
-            commentDiv.appendChild(audioEl);
+            audioEl.src = data.audio_url; 
+            
+            // Kiểm tra URL có bị hỏng không (tùy chọn)
+            if (data.audio_url.length > 5) {
+                commentDiv.appendChild(audioEl);
+            } else {
+                 // Ghi nhận lỗi hiển thị audio
+                 const errorEl = document.createElement('div');
+                 errorEl.textContent = "(Lỗi: URL ghi âm bị hỏng)";
+                 errorEl.style.color = 'red';
+                 commentDiv.appendChild(errorEl);
+            }
         }
 
         if (data.created_at) { 
@@ -512,4 +622,13 @@ document.addEventListener('DOMContentLoaded', () => {
         stopButton.disabled = true;
         sendCommentButton.disabled = true; 
     }
+    
+    // --- KHỞI TẠO VÀ TẢI TRẠNG THÁI NGAY LẬP TỨC ---
+    async function initialLoad() {
+        const { data: { session } } = await sb.auth.getSession();
+        updateUIForUser(session?.user);
+    }
+    
+    initialLoad();
+
 });
