@@ -1,0 +1,672 @@
+/* === [CẬP NHẬT] Bố cục Grid cho MỌI màn hình (Mobile First: 1 CỘT XẾP CHỒNG) === */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    
+    /* Bố cục Grid MẶC ĐỊNH (Mobile: 1 Cột) */
+    display: grid;
+    grid-template-columns: 1fr; /* Luôn là 1 cột cho Mobile */
+    grid-template-rows: auto auto auto 1fr;   /* Header, Auth, Guide, Chart */
+    grid-template-areas:
+        "header-area"
+        "auth-area"
+        "guide-area" /* Khu vực hướng dẫn (video/comments) lên trên */
+        "chart-area"; /* Khu vực IPA chart xuống dưới */
+    
+    /* Bỏ max-height/overflow:hidden để nội dung có thể cuộn tự nhiên */
+    height: auto; 
+    max-height: none; 
+    overflow-y: auto; 
+    padding: 15px; 
+    position: relative; 
+}
+
+/* === ĐỊNH DẠNG KHU VỰC HEADER VÀ NÚT ĐĂNG XUẤT (Vị trí cố định) === */
+
+/* #logout-btn: Đặt CỐ ĐỊNH ở góc trên bên phải và dịch lên cao nhất (top: 0) */
+#logout-btn { 
+    position: fixed; 
+    top: 0px; 
+    right: 10px; 
+    padding: 6px 10px; 
+    background-color: #e74c3c; 
+    color: white; 
+    border: none; 
+    border-radius: 5px; 
+    cursor: pointer; 
+    z-index: 1000; 
+    font-size: 0.8em; 
+}
+
+/* h1: CĂN GIỮA text và loại bỏ padding-right gây lệch */
+h1 {
+    grid-area: header-area; 
+    color: #2c3e50;
+    text-align: center; 
+    font-size: 1.3em; 
+    margin: 5px 0 10px 0;
+}
+
+/* === KẾT THÚC ĐỊNH DẠNG HEADER === */
+
+h2 {
+    font-size: 1.1em; 
+    margin: 10px 0;
+    color: #2c3e50;
+    text-align: center;
+}
+h3 {
+    font-size: 1.0em; 
+    margin: 10px 0;
+    color: #2c3e50;
+    text-align: center;
+}
+
+/* === [CẬP NHẬT] Khu vực Auth === */
+#auth-container {
+    grid-area: auth-area;
+    padding: 15px;
+    background-color: #e8f4f8; 
+    border: 1px solid #3498db;
+    border-radius: 8px;
+    margin: 0 0 10px 0;
+    text-align: center;
+}
+#auth-container h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.2em;
+}
+/* === BỔ SUNG: Hiển thị trạng thái đăng nhập rõ ràng hơn === */
+#auth-status {
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    padding: 5px; 
+    background-color: #d1ecf1; 
+    border-radius: 4px;
+    border: 1px solid #bee5eb;
+    text-align: center;
+}
+/* === KẾT THÚC BỔ SUNG === */
+
+#login-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+#login-form input {
+    padding: 8px;
+    width: 100%;
+    max-width: 300px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+#login-btn {
+    padding: 8px 15px;
+    background-color: #2ecc71;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    max-width: 300px;
+    transition: background-color 0.2s;
+}
+#login-btn:hover { background-color: #27ae60; }
+
+
+/* === [CẬP NHẬT] Cột bên TRÁI (Bảng IPA) - VỊ TRÍ XUỐNG DƯỚI TRÊN MOBILE === */
+.ipa-chart {
+    grid-area: chart-area; 
+    overflow-y: visible; /* Cho phép cuộn nếu cần */
+    max-width: none;
+    padding-right: 0; /* Bỏ padding-right mặc định */
+    display: grid; 
+    grid-template-columns: 1fr; 
+    grid-template-rows: auto 1fr;
+    margin-top: 20px; /* Thêm khoảng cách với phần trên */
+}
+
+.ipa-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 5px; 
+    padding: 8px; 
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+/* --- Phân màu theo bảng --- */
+/* === [CẬP NHẬT] Thiết kế Tab và Vuốt Ngang cho Mobile === */
+
+/* Thanh điều khiển Tab */
+.tab-controls {
+    display: flex;
+    justify-content: space-around;
+    gap: 5px;
+    padding: 0 0 10px 0;
+    width: 100%;
+    margin-bottom: 5px;
+}
+.tab-button {
+    flex-grow: 1;
+    padding: 10px 5px;
+    border: none;
+    background-color: #ecf0f1;
+    color: #34495e;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.2s, color 0.2s;
+    font-size: 0.9em;
+}
+.tab-button.active {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Container cho phép cuộn ngang (Mobile only) */
+.ipa-tabs-container {
+    display: flex;
+    width: 100%;
+    overflow-x: hidden; /* Quan trọng: Ngăn cuộn tab container trên Desktop */
+    scroll-behavior: smooth;
+}
+
+/* Nội dung của từng tab */
+.ipa-tab-content {
+    min-width: 100%; /* Mỗi tab chiếm toàn bộ chiều rộng của container */
+    padding-bottom: 10px;
+    flex-shrink: 0; /* Ngăn không cho các tab bị co lại */
+}
+
+/* Ẩn các tiêu đề cấp h3/h2 trong tab content (vì đã có tiêu đề tab) */
+.ipa-tab-content h2, .ipa-tab-content h3 {
+    display: none;
+}
+
+/* Áp dụng lại thuộc tính màu cho ipa-section */
+.ipa-section#monophthongs-section { background-color: #fdf5e6; border: 2px solid #f39c12; }
+.ipa-section#diphthongs-section { background-color: #eafaf1; border: 2px solid #27ae60; }
+.ipa-section#consonants-section { background-color: #fdeaea; border: 2px solid #c0392b; }
+
+.ipa-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 5px; 
+    padding: 8px; 
+    border-radius: 8px;
+    margin-bottom: 0; /* Không cần margin-bottom ở đây nữa */
+}
+
+/* --- Tùy chỉnh ô --- */
+/* ... (Giữ nguyên .ipa-symbol) ... */
+
+
+/* === Điều chỉnh cho Tablet/Desktop (Min-width: 768px) === */
+@media (min-width: 768px) {
+    /* [QUAN TRỌNG] Trở lại bố cục cuộn dọc/2 cột cho Desktop */
+    /* ... (Giữ nguyên body grid và .ipa-chart, #guide-display heights) ... */
+
+    /* Loại bỏ/ẩn tính năng Tab trên Desktop */
+    .tab-controls {
+        display: none;
+    }
+    .ipa-tabs-container {
+        display: block; /* Trở lại flow bình thường */
+        overflow-x: visible; 
+    }
+    .ipa-tab-content {
+        min-width: auto;
+        padding-bottom: 15px;
+        flex-shrink: 1; 
+    }
+    .ipa-tab-content h2, .ipa-tab-content h3 {
+        display: block; /* Hiện lại tiêu đề trên Desktop */
+        text-align: left;
+    }
+    
+    /* Áp dụng lại hiển thị section cho desktop */
+    .ipa-section {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); 
+        gap: 12px; 
+        padding: 18px;
+        margin-bottom: 10px; /* Thêm lại margin cho các section */
+    }
+    
+    /* ... (Giữ nguyên các tùy chỉnh khác cho desktop) ... */
+}
+
+/* === Điều chỉnh cho Desktop Rộng (Min-width: 1025px) === */
+@media (min-width: 1025px) {
+    /* ... (Giữ nguyên các tùy chỉnh khác cho desktop rộng) ... */
+
+    .ipa-section {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+        gap: 20px; 
+        padding: 30px; 
+    }
+}
+
+/* --- Tùy chỉnh ô --- */
+.ipa-symbol {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 5px; 
+    text-align: center;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s, border-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 60px; 
+}
+
+.ipa-symbol:hover {
+    background-color: #ecf0f1;
+    transform: scale(1.05);
+}
+
+.ipa-symbol .symbol {
+    font-size: 1.2em; 
+    font-weight: bold;
+    color: #34495e;
+}
+
+.ipa-symbol .example {
+    font-size: 0.75em; 
+    font-style: italic;
+    color: #7f8c8d;
+    margin-top: 3px;
+}
+
+/* === [CẬP NHẬT] Cột bên PHẢI (Video + Hướng dẫn) - VỊ TRÍ LÊN TRÊN TRÊN MOBILE === */
+#guide-display {
+    grid-area: guide-area; 
+    overflow-y: visible; /* Cho phép cuộn nếu cần */
+    max-width: none;
+    
+    padding: 5px; 
+    background-color: #ffffff;
+    border: 2px dashed #3498db;
+    border-radius: 8px;
+    
+    display: flex;
+    flex-direction: column; 
+    align-items: center; 
+    
+    position: static;
+    margin-bottom: 0;
+}
+
+/* === Định dạng cho khu vực Video (CẬP NHẬT RESPONSIVE) === */
+
+/* Nút điều khiển */
+#video-custom-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* Tăng khoảng cách nút trên mobile */
+    margin-bottom: 10px;
+    width: 100%; 
+    max-width: 500px;
+    flex-wrap: wrap; 
+    padding: 0 5px; 
+}
+#video-custom-controls button {
+    font-size: 1em; /* Tăng kích thước nút trên mobile */
+    padding: 10px 15px; 
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-grow: 1; 
+    min-width: 100px; /* Đảm bảo nút đủ lớn */
+}
+#video-play-btn { background-color: #27ae60; } 
+#video-pause-btn { background-color: #e74c3c; } 
+#video-custom-controls button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+/* Hộp chứa video */
+#vimeo-player-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #eee;
+    border-radius: 8px;
+    position: relative;
+    /* KHÔNG THAY ĐỔI: Đảm bảo video chiếm 100% chiều rộng của guide-display */
+}
+/* [THÊM MỚI] Lớp để ẩn video */
+#vimeo-player-container.video-hidden {
+    display: none;
+}
+
+/* Trình phát của Vimeo */
+#iframe-target {
+    width: 100%;
+    height: 100%;
+}
+#iframe-target iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 8px;
+    min-width: 0; 
+}
+#video-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-style: italic;
+    margin: 0;
+    padding: 10px;
+    text-align: center;
+}
+
+
+/* === Định dạng khu vực text guide === */
+#guide-text-container { width: 100%; margin-top: 10px; }
+#guide-text {
+    font-size: 1.0em; /* Tăng cỡ chữ cho mobile */
+    color: #34495e;
+    text-align: center;
+    line-height: 1.4;
+    margin: 0;
+    padding: 0 5px; 
+}
+
+/* === Định dạng cho ô đang được chọn === */
+.ipa-symbol.active {
+    background-color: #ecf0f1;
+    border-color: #3498db;
+    transform: scale(1.05);
+}
+
+/* === Định dạng khu vực bình luận === */
+#comments-section {
+    width: 100%;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 2px solid #eee;
+}
+
+/* CSS cho việc đóng/mở bình luận */
+#comment-toggle-header {
+    cursor: pointer;
+    user-select: none; 
+    text-align: left;
+    font-size: 1.2em; /* Tăng cỡ chữ cho mobile */
+    color: #333;
+    padding: 0 5px;
+}
+
+.toggle-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease-in-out;
+    margin-right: 5px;
+}
+
+#comment-content-wrapper.collapsed { display: none; }
+#comment-toggle-header.collapsed .toggle-arrow { transform: rotate(-90deg); }
+
+#new-comment-form { display: flex; flex-direction: column; gap: 10px; padding: 0 5px; }
+
+#record-controls { display: flex; gap: 5px; flex-wrap: wrap; }
+#record-controls button {
+    padding: 8px 10px; /* Tăng padding nút ghi âm */
+    font-size: 0.9em; 
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: #3498db;
+    color: white;
+    transition: background-color 0.2s;
+    flex-grow: 1;
+}
+
+#record-controls button:hover { background-color: #2980b9; }
+#record-controls button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+#record-status { font-size: 0.9em; color: #e74c3c; min-height: 1.2em; padding: 0 5px; }
+#recording-preview { width: 100%; display: none; padding: 0 5px; }
+
+#comments-list {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 300px; 
+    overflow-y: auto; 
+    padding: 0 5px;
+}
+
+.comment-item {
+    padding: 8px; 
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+/* === BỔ SUNG: Định dạng người gửi bình luận === */
+.comment-sender {
+    font-size: 0.85em;
+    font-weight: bold;
+    color: #3498db;
+    margin-bottom: 5px;
+}
+/* === KẾT THÚC BỔ SUNG === */
+
+.comment-item p { margin: 0 0 8px 0; color: #333; white-space: pre-wrap; font-size: 0.9em; }
+.comment-item audio { width: 100%; height: 30px; } 
+.comment-timestamp { font-size: 0.75em; color: #7f8c8d; margin-top: 5px; }
+
+
+/* === Phóng to lại cho Tablet/Desktop (Min-width: 768px) === */
+@media (min-width: 768px) {
+    
+    /* [QUAN TRỌNG] Chuyển lại sang Bố cục 2 cột cho Tablet/Desktop */
+    body {
+        grid-template-columns: 1fr 1fr; /* 2 cột bằng nhau */
+        grid-template-rows: auto auto 1fr;   /* Header, Auth, Nội dung chính */
+        grid-template-areas:
+            "header-area header-area"
+            "auth-area auth-area"
+            "chart-area guide-area"; /* IPA Chart bên trái, Guide/Video bên phải */
+        
+        height: 100vh; /* Cố định chiều cao lại */
+        max-height: 100vh;
+        overflow: hidden; /* Ngăn cuộn toàn bộ trang */
+        padding: 20px; 
+    }
+    
+    /* Thiết lập lại chiều cao cột phải cuộn và cột trái cuộn trên desktop */
+    .ipa-chart {
+        overflow-y: auto; /* Cho phép cột IPA cuộn */
+        padding-right: 5px; /* Thêm padding cho desktop */
+        margin-top: 0;
+    }
+    #guide-display {
+        overflow-y: auto; /* Cho phép cột Guide cuộn */
+        padding: 20px 25px; 
+    }
+    
+    h1 { 
+        font-size: 2.5em; 
+        margin: 10px 0 25px 0; 
+    }
+    
+    #logout-btn { 
+        right: 20px; 
+        padding: 10px 18px; 
+        font-size: 1.1em; 
+    }
+    
+    h2 { font-size: 1.6em; } 
+    h3 { font-size: 1.3em; } 
+    
+    #auth-container { margin-bottom: 30px; } 
+    #auth-container h2 { font-size: 1.8em; } 
+    #auth-status { font-size: 1.3em; } 
+    
+    /* Input Form và nút */
+    #login-form { gap: 10px; } 
+    #login-form input, #login-btn {
+        max-width: 350px; 
+        padding: 12px 20px; 
+        font-size: 1em; 
+    }
+    #auth-container p { font-size: 1.1em; }
+
+
+    /* Bảng IPA */
+    .ipa-section {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); 
+        gap: 12px; 
+        padding: 18px;
+    }
+
+    /* Ô Ký tự IPA */
+    .ipa-symbol {
+        padding: 12px;
+        min-height: 90px;
+    }
+    .ipa-symbol .symbol { font-size: 2.2em; } 
+    .ipa-symbol .example { font-size: 1em; } 
+
+    /* Cột Hướng dẫn và Bình luận */
+    #guide-text { font-size: 1.2em; padding: 0; } 
+    #comments-section h3 { font-size: 1.4em; padding: 0; }
+    #record-controls button { font-size: 1em; padding: 12px 18px; } 
+    #comments-list { max-height: 450px; }
+    .comment-item p { font-size: 1.1em; } 
+    .comment-timestamp { font-size: 0.9em; } 
+    
+    /* Nút Video */
+    #video-custom-controls button {
+        font-size: 1em;
+        padding: 10px 15px; 
+    }
+    
+    /* [CẬP NHẬT] Tính toán chiều cao cột cho desktop */
+    /* Chiều cao cột chính: 100vh - (Header margin 35px + Auth 130px + Padding body 40px) ~ 205px. Giữ 190px như cũ là hợp lý. */
+    .ipa-chart, #guide-display {
+        height: calc(100vh - 190px); 
+    }
+}
+
+/* === Điều chỉnh cho Desktop Rộng (Min-width: 1025px) === */
+@media (min-width: 1025px) {
+    
+    /* Cho phép 3+ cột trong cột IPA */
+    .ipa-section {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+        gap: 20px; 
+        padding: 30px; 
+    }
+
+    /* Kích thước chữ to hơn cho các thành phần chính */
+    h1 { 
+        font-size: 3.5em; 
+        margin: 20px 0 40px 0;
+    }
+    h2 { font-size: 2.5em; } 
+    h3 { font-size: 2.0em; } 
+
+    /* Khu vực Auth */
+    #auth-container { 
+        padding: 30px; 
+        margin-bottom: 40px; 
+    }
+    
+    #auth-container h2 { font-size: 2.6em; } 
+    #auth-status { font-size: 1.6em; } 
+
+    /* Input và nút rộng hơn trên desktop */
+    #login-form input, #login-btn {
+        max-width: 450px !important; 
+        padding: 18px 25px; 
+        font-size: 1.5em; 
+    }
+    
+    #login-form { gap: 15px; } 
+
+    /* Tăng cỡ chữ cho văn bản footer dưới form đăng nhập */
+    #auth-container p { font-size: 1.4em; } 
+
+
+    /* Ô Ký tự IPA */
+    .ipa-symbol {
+        padding: 20px;
+        min-height: 120px; 
+    }
+    .ipa-symbol .symbol { font-size: 3.5em; } 
+    .ipa-symbol .example { font-size: 1.4em; } 
+
+    /* Cột Hướng dẫn và Bình luận */
+    #guide-text { font-size: 1.6em; } 
+    
+    #comment-toggle-header { font-size: 1.8em; } 
+    .comment-sender { font-size: 1.2em; } 
+    .comment-item p { font-size: 1.4em; } 
+    .comment-timestamp { font-size: 1.0em; } 
+    
+    /* Nút Đăng xuất */
+    #logout-btn { 
+        padding: 15px 25px;
+        font-size: 1.4em; 
+    }
+    
+    /* Nút Ghi âm/Video */
+    #record-controls button, #video-custom-controls button {
+        font-size: 1.2em; 
+        padding: 14px 22px;
+    }
+
+    /* Chiều cao cột chính */
+    .ipa-chart, #guide-display {
+        height: calc(100vh - 250px); 
+    }
+}
+/* === BỔ SUNG: TRẠNG THÁI HOÀN THÀNH === */
+.ipa-symbol {
+    position: relative; 
+}
+
+.completion-container {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    cursor: pointer;
+    font-size: 1.5em; 
+    line-height: 1;
+    z-index: 10;
+    user-select: none;
+    color: #95a5a6; 
+    transition: color 0.2s;
+}
+
+.completion-container:hover {
+    color: #2c3e50;
+}
+
+/* Ký tự đã hoàn thành */
+.ipa-symbol.completed {
+    background-color: #e6ffe6 !important; 
+    border-color: #2ecc71 !important; 
+    transform: scale(1.05);
+}
+
+.ipa-symbol.completed .completion-status-icon {
+    content: "✔"; 
+    color: #2ecc71; 
+}

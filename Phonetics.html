@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng IPA Tương Tác</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="stylephonetics.css">
+
+    </head>
+    <button id="logout-btn" style="display: none;">Đăng xuất</button>
+    <body>
+
+    <h1>Học Phiên Âm IPA</h1>
+
+
+    <div id="auth-container">
+        <h2>Đăng nhập Hệ thống</h2>
+        <p style=" color: #7f8c8d; margin-top: 10px; text-align: center;">
+    (<a href="https://duong2711.github.io/Phat_Am_IPA/" style="color: #3498db; text-decoration: none; font-weight: bold; font-style: italic;">Bấm vào đây </a> để đi đến website chính thức nếu đang ở zalo/FB)
+        <div id="auth-status">Đang kiểm tra trạng thái...</div>
+        
+        <form id="login-form">
+            <input type="email" id="login-email" placeholder="Email (dùng để đăng nhập)" required>
+            <input type="password" id="login-password" placeholder="Mật khẩu" required>
+            <button type="submit" id="login-btn">ĐĂNG NHẬP</button>
+        </form>
+        <p style=" color: #7f8c8d; margin-top: 10px; text-align: center;">(Chỉ cho phép các tài khoản đã được tạo sẵn trên hệ thống).</p>
+    </div>
+
+    <!-- KHU VỰC HƯỚNG DẪN (VIDEO + GHI ÂM/BÌNH LUẬN) - ĐƯỢC ĐƯA LÊN TRƯỚC BẢNG IPA TRÊN MOBILE -->
+    <div id="guide-display">
+        
+        <div id="video-custom-controls">
+            <button id="video-play-btn">▶ Tiếp tục</button>
+            <button id="video-pause-btn">❚❚ Dừng</button>
+        </div>
+
+        <div id="vimeo-player-container">
+            <div id="iframe-target">
+                <p id="video-placeholder">Bấm vào ký tự để xem video hướng dẫn.</p>
+            </div>
+        </div>
+        
+        <div id="guide-text-container">
+            <p id="guide-text">Bấm vào một ký tự bất kỳ để xem hướng dẫn phát âm.</p>
+        </div>
+
+        <div id="comments-section">
+            <h3 id="comment-toggle-header">
+                <span class="toggle-arrow">▼</span> Luyện phát âm: /<span id="comment-symbol-display"></span>/
+            </h3>
+            
+            <div id="comment-content-wrapper">
+                <div id="new-comment-form">
+                    
+                    <div id="record-controls">
+                        <button id="record-button">Bắt đầu ghi âm</button>
+                        <button id="stop-button" disabled>Dừng ghi âm</button>
+                        <button id="send-comment-button" disabled>Gửi Ghi Âm</button>
+                    </div>
+
+                    <audio id="recording-preview" controls></audio>
+                    <div id="record-status"></div>
+                </div>
+
+                <div id="comments-list">
+                    </div>
+            </div> 
+        </div>
+    </div> 
+    
+    <!-- KHU VỰC BẢNG IPA - ĐƯỢC ĐƯA XUỐNG DƯỚI TRÊN MOBILE -->
+    <div class="ipa-chart" style="display: none;">
+        
+        <div class="tab-controls">
+            <button class="tab-button active" data-target="monophthongs">Nguyên âm đơn</button>
+            <button class="tab-button" data-target="diphthongs">Nguyên âm đôi</button>
+            <button class="tab-button" data-target="consonants">Phụ âm</button>
+        </div>
+        
+        <div class="ipa-tabs-container">
+            
+            <div class="ipa-tab-content active" id="monophthongs">
+                <h3>Monophthongs (Nguyên âm đơn)</h3>
+                <div class="ipa-section" id="monophthongs-section">
+                    
+                    <div class="ipa-symbol" data-symbol="i:" data-word="leave" data-audio="https://files.catbox.moe/b88x8g.mp3" data-guide="Âm /i:/ (i dài): Đọc kéo dài âm 'i', âm phát từ khoang miệng. Môi mở rộng hai bên như đang mỉm cười, lưỡi nâng cao lên." data-video-src="https://player.vimeo.com/video/799053416?h=4b62519b74">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">i:</span><span class="example">leave</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="i" data-word="live" data-audio="https://files.catbox.moe/clne4h.mp3" data-guide="Âm /ɪ/ (i ngắn): Giống âm 'i' tiếng Việt nhưng ngắn hơn, bật nhanh. Môi hơi mở sang hai bên, lưỡi hạ thấp." data-video-src="https://player.vimeo.com/video/799053148?h=be9fb2b856">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɪ</span><span class="example">live</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="u" data-word="put"data-audio="https://files.catbox.moe/69x88u.mp3" data-guide="Âm /ʊ/ (u ngắn): Giống âm 'ư' của tiếng Việt. Đẩy hơi rất ngắn từ cổ họng, không dùng môi. Môi hơi tròn, lưỡi hạ thấp." data-video-src="https://player.vimeo.com/video/799022336?h=57fc047f21">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʊ</span><span class="example">put</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="u:" data-word="pool" data-audio="https://files.catbox.moe/dknqa5.mp3" data-guide="Âm /u:/ (u dài): Kéo dài âm /ʊ/, âm phát ra từ khoang miệng. Môi tròn, lưỡi nâng cao lên." data-video-src="https://player.vimeo.com/video/799023321?h=724e2c9082">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">u:</span><span class="example">pool</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="e" data-word="pen" data-audio="https://files.catbox.moe/i5ehj5.mp3" data-guide="Âm /e/: Tương tự âm 'e' tiếng Việt nhưng ngắn hơn. Môi mở rộng sang hai bên (rộng hơn /ɪ/), lưỡi hạ thấp hơn /ɪ/." data-video-src="https://player.vimeo.com/video/799018681?h=c8a9d48c4d">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">e</span><span class="example">pen</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ə" data-word="a" data-audio="https://files.catbox.moe/bb0j1e.mp3" data-guide="Âm /ə/ (schwa): Âm 'ơ' ngắn, phát ngắn và nhẹ hơn 'ơ' tiếng Việt. Môi hơi mở rộng, lưỡi thả lỏng." data-video-src="https://player.vimeo.com/video/799019910?h=d367d2f7d2">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ə</span><span class="example">a</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɜ:" data-word="girl" data-audio="https://files.catbox.moe/b114z3.mp3" data-guide="Âm /ɜ:/ (ơ dài): Đọc là âm 'ơ' nhưng cong lưỡi. Phát âm /ə/ rồi cong lưỡi lên, âm từ khoang miệng. Môi hơi mở rộng, lưỡi cong lên chạm vòm miệng." data-video-src="https://player.vimeo.com/video/799020959?h=380b7874bb">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɜ:</span><span class="example">girl</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɔ:" data-word="door" data-audio="https://files.catbox.moe/zze6w6.mp3" data-guide="Âm /ɔ:/: Phát âm như âm 'o' tiếng Việt nhưng rồi cong lưỡi lên. Tròn môi, lưỡi cong lên chạm vòm miệng khi kết thúc." data-video-src="https://player.vimeo.com/video/799025423?h=3a82d409dd">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɔ:</span><span class="example">door</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="æ" data-word="man" data-audio="" data-guide="Âm /æ/ (a bẹt): Âm lai giữa 'a' và 'e'. Miệng mở rộng, môi dưới hạ thấp xuống. Lưỡi hạ rất thấp." data-video-src="https://player.vimeo.com/video/799028170?h=dc7f026866">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">æ</span><span class="example">man</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ʌ" data-word="cup" data-audio="https://files.catbox.moe/4lx65j.mp3" data-guide="Âm /ʌ/: Âm lai giữa 'ă' và 'ơ' (giống 'ă' hơn). Phát âm bật hơi. Miệng thu hẹp, lưỡi hơi nâng lên cao." data-video-src="https://player.vimeo.com/video/799025165?h=08f343bebe">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʌ</span><span class="example">cup</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɑ:" data-word="car" data-audio="https://files.catbox.moe/3bv9e5.mp3" data-guide="Âm /ɑ:/ (a dài): Âm 'a' đọc kéo dài, âm phát ra từ khoang miệng. Môi mở rộng, lưỡi hạ thấp." data-video-src="https://player.vimeo.com/video/799028410?h=2c77aa9867">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɑ:</span><span class="example">car</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɒ" data-word="hot" data-audio="https://files.catbox.moe/uxaxfi.mp3" data-guide="Âm /ɒ/ (o ngắn): Tương tự âm 'o' tiếng Việt nhưng phát âm ngắn hơn. Môi hơi tròn, lưỡi hạ thấp." data-video-src="https://player.vimeo.com/video/803333593?h=6adc718c73">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɒ</span><span class="example">hot</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="ipa-tab-content" id="diphthongs">
+                <h3>Diphthongs (Nguyên âm đôi)</h3>
+                <div class="ipa-section" id="diphthongs-section">
+                    
+                    <div class="ipa-symbol" data-symbol="ɪə" data-word="year" data-audio="" data-guide="Âm /ɪə/: Chuyển từ âm /ɪ/ rồi dần sang âm /ə/. Môi mở rộng dần. Lưỡi đẩy dần ra về phía trước." data-video-src="https://player.vimeo.com/video/799034185?h=e31a8f3fbc">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɪə</span><span class="example">year</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="eɪ" data-word="paper" data-audio="" data-guide="Âm /eɪ/: Đọc âm /e/ rồi chuyển dần sang âm /ɪ/. Môi dẹt dần sang hai bên. Lưỡi hướng dần lên trên." data-video-src="https://player.vimeo.com/video/805797587?h=71d1e256c0">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">eɪ</span><span class="example">paper</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ʊə" data-word="tourist" data-audio="" data-guide="Âm /ʊə/: Đọc như 'ua', chuyển từ âm /ʊ/ sang âm /ə/. Môi mở khá tròn, hơi bè, sau đó miệng hơi mở ra, lưỡi lùi về giữa." data-video-src="https://player.vimeo.com/video/799038699?h=082b944b89">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʊə</span><span class="example">tourist</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɔɪ" data-word="boy" data-audio="" data-guide="Âm /ɔɪ/: Đọc âm /ɔ:/ rồi chuyển dần sang âm /ɪ/. Môi dẹt dần sang hai bên. Lưỡi nâng lên và đẩy dần về phía trước." data-video-src="https://player.vimeo.com/video/799034911?h=3af79a3759">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɔɪ</span><span class="example">boy</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="əʊ" data-word="phone" data-audio="" data-guide="Âm /əʊ/: Đọc âm /ə/ rồi chuyển dần sang âm /ʊ/. Môi từ hơi mở đến hơi tròn. Lưỡi lùi dần về phía sau." data-video-src="https://player.vimeo.com/video/799037174?h=ca7ab60654">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">əʊ</span><span class="example">phone</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="eə" data-word="chair" data-audio="" data-guide="Âm /eə/: Đọc âm /e/ rồi chuyển dần sang âm /ə/. Môi hơi thu hẹp. Lưỡi thụt dần về phía sau." data-video-src="https://player.vimeo.com/video/799034426?h=c511125579">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">eə</span><span class="example">chair</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="aɪ" data-word="fine" data-audio="" data-guide="Âm /aɪ/: Đọc âm /ɑ:/ rồi chuyển dần sang âm /ɪ/. Môi dẹt dần sang hai bên. Lưỡi nâng lên và hơi đẩy dần về trước." data-video-src="https://player.vimeo.com/video/799035152?h=546b90fad7">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">aɪ</span><span class="example">fine</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="aʊ" data-word="house" data-audio="" data-guide="Âm /aʊ/: Đọc âm /ɑ:/ rồi chuyển dần sang âm /ʊ/. Môi tròn dần. Lưỡi hơi thụt về phía sau." data-video-src="https://player.vimeo.com/video/799038374?h=8b0f9926ce">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">aʊ</span><span class="example">house</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="ipa-tab-content" id="consonants">
+                <h2>Consonants (Phụ âm)</h2>
+                <div class="ipa-section" id="consonants-section">
+                    
+                    <div class="ipa-symbol" data-symbol="p" data-word="pen" data-audio="" data-guide="Âm /p/: Giống âm 'P' của tiếng Việt. Hai môi chặn luồng không khí rồi bật ra. Dây thanh quản không rung." data-video-src="https://player.vimeo.com/video/799048874?h=6d240d8ebe">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">p</span><span class="example">pen</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="b" data-word="baby" data-audio="" data-guide="Âm /b/: Tương tự âm 'B' tiếng Việt. Hai môi chặn không khí rồi bật ra. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799049174?h=bb7d7e5b68">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">b</span><span class="example">baby</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="t" data-word="table" data-audio="" data-guide="Âm /t/: Giống âm 'T' tiếng Việt nhưng bật hơi mạnh hơn. Đặt đầu lưỡi dưới nướu, khi bật hơi đầu lưỡi chạm răng cửa dưới. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799049410?h=da9b27a30a">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">t</span><span class="example">table</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="d" data-word="door" data-audio="" data-guide="Âm /d/: Giống âm 'd' tiếng Việt, bật hơi mạnh hơn. Đặt đầu lưỡi dưới nướu, khi bật hơi đầu lưỡi chạm răng cửa dưới. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799049745?h=1a5bc1cae0">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">d</span><span class="example">door</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="tʃ" data-word="chip" data-audio="" data-guide="Âm /tʃ/: Tương tự âm 'CH' (như 'chè'). Môi hơi tròn, chu về phía trước. Lưỡi thẳng, chạm hàm dưới, khí thoát trên bề mặt lưỡi. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799050073?h=6251c6ee22">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">tʃ</span><span class="example">chip</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="dʒ" data-word="January" data-audio="" data-guide="Âm /dʒ/: Phát âm giống /tʃ/ nhưng có rung dây thanh quản. Môi hơi tròn, chu về trước. Lưỡi thẳng, chạm hàm dưới." data-video-src="https://player.vimeo.com/video/799050433?h=926969597d">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">dʒ</span><span class="example">January</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="k" data-word="key" data-audio="" data-guide="Âm /k/: Giống âm 'K' tiếng Việt nhưng bật hơi mạnh. Nâng phần sau của lưỡi chạm ngạc mềm, hạ thấp khi luồng khí bật ra. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799716570?h=e9d4ed8b97">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">k</span><span class="example">key</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="g" data-word="girl" data-audio="" data-guide="Âm /g/: Như âm 'G' của tiếng Việt. Nâng phần sau của lưỡi chạm ngạc mềm, hạ thấp khi luồng khí bật ra. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799051365?h=1ce719e473">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">g</span><span class="example">girl</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="f" data-word="fan" data-audio="" data-guide="Âm /f/: Tương tự âm 'PH' tiếng Việt. Hàm trên chạm nhẹ vào môi dưới." data-video-src="https://player.vimeo.com/video/799051556?h=31b489851a">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">f</span><span class="example">fan</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="v" data-word="van" data-audio="" data-guide="Âm /v/: Như âm 'V' tiếng Việt. Hàm trên chạm nhẹ vào môi dưới." data-video-src="https://player.vimeo.com/video/799051845?h=8731ac54df">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">v</span><span class="example">van</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="θ" data-word="think" data-audio="" data-guide="Âm /θ/: Đặt đầu lưỡi ở giữa hai hàm răng. Để luồng khí thoát ra giữa lưỡi và 2 hàm răng. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799713097?h=69e9fc9137">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">θ</span><span class="example">think</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ð" data-word="this" data-audio="" data-guide="Âm /ð/: Đặt đầu lưỡi ở giữa hai hàm răng. Để luồng khí thoát ra giữa lưỡi và 2 hàm răng. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799048470?h=193730697e">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ð</span><span class="example">this</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="s" data-word="sun" data-audio="" data-guide="Âm /s/: Như âm 'S' (như 'sao'). Lưỡi đặt nhẹ lên hàm trên, luồng khí thoát từ giữa mặt lưỡi và lợi. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799713752?h=b29065bb07">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">s</span><span class="example">sun</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="z" data-word="zoo" data-audio="" data-guide="Âm /z/: Tương tự /s/. Lưỡi đặt nhẹ lên hàm trên, luồng khí thoát từ giữa mặt lưỡi và lợi. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799713912?h=9a13ffc9d5">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">z</span><span class="example">zoo</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ʃ" data-word="shoes" data-audio="" data-guide="Âm /ʃ/: Giống âm 'S' (như 'sushi'). Môi chu ra, tròn. Mặt lưLưỡi chạm lợi hàm trên, nâng phần trước của lưỡi lên." data-video-src="https://player.vimeo.com/video/799714545?h=9ccddda2fd">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʃ</span><span class="example">shoes</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ʒ" data-word="vision" data-audio="" data-guide="Âm /ʒ/: Tương tự /ʃ/. Môi chu ra, tròn. Mặt lưỡi chạm lợi hàm trên, nâng phần trước của lưỡi lên. Đọc rung thanh quản." data-video-src="https://player.vimeo.com/video/799714707?h=68f76b7ceb">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʒ</span><span class="example">vision</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="m" data-word="mouth" data-audio="" data-guide="Âm /m/: Giống âm 'M' tiếng Việt. Hai môi ngậm lại, luồng khí thoát ra bằng mũi." data-video-src="https://player.vimeo.com/video/799714910?h=66685b8082">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">m</span><span class="example">mouth</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="n" data-word="nose" data-audio="" data-guide="Âm /n/: Như âm 'N'. Môi hé, đầu lưỡi chạm lợi hàm trên, chặn để khí phát ra từ mũi." data-video-src="https://player.vimeo.com/video/799715128?h=ee57d25a7f">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">n</span><span class="example">nose</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ŋ" data-word="ring" data-audio="" data-guide="Âm /ŋ/: Giống âm 'NG' (như 'vàng'). Chặn khí ở lưỡi, môi hé, khí phát ra từ mũi. Phần sau của lưỡi nâng lên chạm ngạc mềm. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799715291?h=4fb6959d60">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ŋ</span><span class="example">ring</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="h" data-word="hear" data-audio="" data-guide="Âm /h/: Như âm 'H' tiếng Việt. Môi hé nửa, lưỡi hạ thấp để khí thoát ra. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799715413?h=eaf39b6eb0">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">h</span><span class="example">hear</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="l" data-word="letter" data-audio="" data-guide="Âm /l/: Cong lưỡi từ từ, chạm răng hàm trên. Môi mở rộng, đầu lưỡi cong lên đặt vào lợi hàm trên. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799715572?h=41d393086b">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">l</span><span class="example">letter</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="r" data-word="rain" data-audio="" data-guide="Âm /r/: Khác 'R' tiếng Việt. Cong lưỡi vào trong, môi tròn, hơi chu về phía trước. Khi khí thoát ra, lưỡi thả lỏng, môi mở rộng." data-video-src="https://player.vimeo.com/video/799715754?h=788187cd38">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">r</span><span class="example">rain</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="w" data-word="window" data-audio="" data-guide="Âm /w/: Môi tròn, chu về phía trước, lưỡi thả lỏng. Khi luồng khí phát ra, môi mở rộng, lưỡi vẫn thả lỏng." data-video-src="https://player.vimeo.com/video/799715924?h=bed60cb452">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">w</span><span class="example">window</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="j" data-word="yellow" data-audio="" data-guide="Âm /j/: Giống âm 'd'/'gi' của Việt Nam (như trong 'du lịch'). Môi hơi mở, phần trước lưỡi nâng lên gần ngạc cứng, luồng khí đi ra." data-video-src="https://player.vimeo.com/video/799716079?h=d87ed66f8f">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">j</span><span class="example">yellow</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="scriptphonetics.js"></script>
+</body>
+</html>
