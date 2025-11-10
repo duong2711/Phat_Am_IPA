@@ -105,7 +105,7 @@ h3 {
     width: 100%; 
     max-width: none;
     
-    padding: 10px; /* [Mobile] Giảm padding */
+    padding: 5px; /* Đã giảm padding để tối đa hóa không gian ngang cho video */
     background-color: #ffffff;
     border: 2px dashed #3498db;
     border-radius: 8px;
@@ -114,30 +114,33 @@ h3 {
     flex-direction: column; 
     align-items: center; 
     
-    /* Bỏ các thuộc tính của layout cũ */
     position: static;
     margin-bottom: 0;
 }
 
-/* === Định dạng cho khu vực Video === */
+/* === Định dạng cho khu vực Video (CẬP NHẬT RESPONSIVE) === */
 
 /* Nút điều khiển */
 #video-custom-controls {
     display: flex;
     justify-content: center;
-    gap: 10px;
+    gap: 5px; /* Giảm gap giữa các nút */
     margin-bottom: 10px;
-    width: 100%;
+    width: 100%; 
     max-width: 500px;
+    flex-wrap: wrap; 
+    padding: 0 5px; /* Thêm padding nhỏ để tránh dính lề */
 }
 #video-custom-controls button {
     font-size: 0.9em;
-    padding: 8px 15px;
+    padding: 6px 10px; /* Giảm padding nút */
     border: none;
     border-radius: 5px;
     color: white;
     cursor: pointer;
     transition: background-color 0.2s;
+    flex-grow: 1; 
+    min-width: 90px; /* Giới hạn co lại nhỏ hơn */
 }
 #video-play-btn { background-color: #27ae60; } /* Màu xanh */
 #video-pause-btn { background-color: #e74c3c; } /* Màu đỏ */
@@ -149,7 +152,6 @@ h3 {
 /* Hộp chứa video */
 #vimeo-player-container {
     width: 100%;
-    max-width: 500px; /* Cho video không quá to trên PC/Tablet */
     aspect-ratio: 16 / 9;
     background-color: #eee;
     border-radius: 8px;
@@ -170,6 +172,7 @@ h3 {
     height: 100%;
     border: none;
     border-radius: 8px;
+    min-width: 0; /* Đảm bảo iframe có thể co giãn hết cỡ */
 }
 #video-placeholder {
     width: 100%;
@@ -193,6 +196,7 @@ h3 {
     text-align: center;
     line-height: 1.4;
     margin: 0;
+    padding: 0 5px; /* Thêm padding cho text guide */
 }
 
 /* === Định dạng cho ô đang được chọn === */
@@ -217,6 +221,7 @@ h3 {
     text-align: left;
     font-size: 1.1em; /* [Mobile] Giảm cỡ chữ */
     color: #333;
+    padding: 0 5px;
 }
 
 .toggle-arrow {
@@ -228,25 +233,26 @@ h3 {
 #comment-content-wrapper.collapsed { display: none; }
 #comment-toggle-header.collapsed .toggle-arrow { transform: rotate(-90deg); }
 
-#new-comment-form { display: flex; flex-direction: column; gap: 10px; }
+#new-comment-form { display: flex; flex-direction: column; gap: 10px; padding: 0 5px; }
 
-#record-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+#record-controls { display: flex; gap: 5px; flex-wrap: wrap; }
 #record-controls button {
-    padding: 8px 10px;
-    font-size: 0.8em; /* [Mobile] Giảm cỡ chữ */
+    padding: 6px 8px;
+    font-size: 0.8em; 
     border: none;
     border-radius: 5px;
     cursor: pointer;
     background-color: #3498db;
     color: white;
     transition: background-color 0.2s;
+    flex-grow: 1;
 }
 
 #record-controls button:hover { background-color: #2980b9; }
 #record-controls button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
 
-#record-status { font-size: 0.8em; color: #e74c3c; min-height: 1.2em; }
-#recording-preview { width: 100%; display: none; }
+#record-status { font-size: 0.8em; color: #e74c3c; min-height: 1.2em; padding: 0 5px; }
+#recording-preview { width: 100%; display: none; padding: 0 5px; }
 
 #comments-list {
     margin-top: 15px;
@@ -255,17 +261,18 @@ h3 {
     gap: 10px;
     max-height: 300px; /* [Mobile] Giảm chiều cao */
     overflow-y: auto; 
+    padding: 0 5px;
 }
 
 .comment-item {
-    padding: 10px;
+    padding: 8px; /* Giảm padding */
     background-color: #f9f9f9;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
 }
-.comment-item p { margin: 0 0 10px 0; color: #333; white-space: pre-wrap; font-size: 0.9em; }
-.comment-item audio { width: 100%; height: 35px; }
-.comment-timestamp { font-size: 0.75em; color: #7f8c8d; margin-top: 8px; }
+.comment-item p { margin: 0 0 8px 0; color: #333; white-space: pre-wrap; font-size: 0.9em; }
+.comment-item audio { width: 100%; height: 30px; } /* Giảm chiều cao audio */
+.comment-timestamp { font-size: 0.75em; color: #7f8c8d; margin-top: 5px; }
 
 
 /* === Phóng to lại cho Tablet/Desktop === */
@@ -285,6 +292,8 @@ h3 {
     .ipa-chart, #guide-display {
         height: calc(100vh - 120px); 
     }
+    
+    #guide-display { padding: 15px 20px; } /* Trả lại padding cột phải */
 
     /* Trả lại bố cục cột IPA */
     .ipa-section {
@@ -302,15 +311,20 @@ h3 {
     .ipa-symbol .example { font-size: 0.9em; }
 
     /* Trả lại cỡ chữ cột phải */
-    #guide-display { padding: 15px 20px; }
-    #guide-text { font-size: 1.1em; }
-    #comments-section h3 { font-size: 1.3em; }
+    #guide-text { font-size: 1.1em; padding: 0; }
+    #comments-section h3 { font-size: 1.3em; padding: 0; }
+    #new-comment-form { padding: 0; }
     #record-controls button { font-size: 0.9em; padding: 10px 15px; }
-    #record-status { font-size: 0.9em; }
-    #comments-list { max-height: 400px; }
+    #record-status { font-size: 0.9em; padding: 0;}
+    #comments-list { max-height: 400px; padding: 0;}
     .comment-item p { font-size: 1em; }
     .comment-item audio { height: 40px; }
     .comment-timestamp { font-size: 0.8em; }
+    
+    #video-custom-controls { gap: 10px; padding: 0; }
+    #video-custom-controls button { padding: 8px 15px; min-width: 100px; }
+    #recording-preview { padding: 0; }
+
 }
 
 /* === Điều chỉnh cho Desktop Rộng === */
