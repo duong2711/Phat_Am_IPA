@@ -1,732 +1,414 @@
-document.addEventListener('DOMContentLoaded', () => {
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng IPA Tương Tác</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="stylephonetics.css">
 
-    // --- CẤU HÌNH SUPABASE (GIỮ NGUYÊN) ---
-    const SUPABASE_URL = 'https://habakuagkfubyzpucfzh.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhYmFrdWFna2Z1Ynl6cHVjZnpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2ODU3NDYsImV4cCI6MjA3ODI2MTc0Nn0.xD8WGjCdPrTZS4HT8ftCszNM4f-cKgbMNBgYtAUf9sg'; 
-    const AUDIO_BUCKET_NAME = 'audio_comments'; 
-    const ADMIN_PASSWORD = 'admin'; 
-    const { createClient } = supabase;
-    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    // ------------------------------------------
+    </head>
+    <button id="logout-btn" style="display: none;">Đăng xuất</button>
+    <body>
 
-    const symbols = document.querySelectorAll('.ipa-symbol');
-    const completionIcons = document.querySelectorAll('.completion-container'); 
+    <h1>Học Phiên Âm IPA</h1>
+
+
+    <div id="auth-container">
+        <h2>Đăng nhập Hệ thống</h2>
+        <p style=" color: #7f8c8d; margin-top: 10px; text-align: center;">
+    (<a href="https://duong2711.github.io/Phat_Am_IPA/" style="color: #3498db; text-decoration: none; font-weight: bold; font-style: italic;">Bấm vào đây </a> để đi đến website chính thức nếu đang ở zalo/FB)
+        <div id="auth-status">Đang kiểm tra trạng thái...</div>
+        
+        <form id="login-form">
+            <input type="email" id="login-email" placeholder="Email (dùng để đăng nhập)" required>
+            <input type="password" id="login-password" placeholder="Mật khẩu" required>
+            <button type="submit" id="login-btn">ĐĂNG NHẬP</button>
+        </form>
+        <p style=" color: #7f8c8d; margin-top: 10px; text-align: center;">(Chỉ cho phép các tài khoản đã được tạo sẵn trên hệ thống).</p>
+    </div>
+
+    <!-- KHU VỰC HƯỚNG DẪN (VIDEO + GHI ÂM/BÌNH LUẬN) - ĐƯỢC ĐƯA LÊN TRƯỚC BẢNG IPA TRÊN MOBILE -->
+    <div id="guide-display">
+        
+        <div id="video-custom-controls">
+            <button id="video-play-btn">▶ Tiếp tục</button>
+            <button id="video-pause-btn">❚❚ Dừng</button>
+        </div>
+
+        <div id="vimeo-player-container">
+            <div id="iframe-target">
+                <p id="video-placeholder">Bấm vào ký tự để xem video hướng dẫn.</p>
+            </div>
+        </div>
+        
+        <div id="guide-text-container">
+            <p id="guide-text">Bấm vào một ký tự bất kỳ để xem hướng dẫn phát âm.</p>
+        </div>
+
+        <div id="comments-section">
+            <h3 id="comment-toggle-header">
+                <span class="toggle-arrow">▼</span> Luyện phát âm: /<span id="comment-symbol-display"></span>/
+            </h3>
+            
+            <div id="comment-content-wrapper">
+                <div id="new-comment-form">
+                    
+                    <div id="record-controls">
+                        <button id="record-button">Bắt đầu ghi âm</button>
+                        <button id="stop-button" disabled>Dừng ghi âm</button>
+                        <button id="send-comment-button" disabled>Gửi Ghi Âm</button>
+                    </div>
+
+                    <audio id="recording-preview" controls></audio>
+                    <div id="record-status"></div>
+                </div>
+
+                <div id="comments-list">
+                    </div>
+            </div> 
+        </div>
+    </div> 
     
-    const vimeoPlayerContainer = document.getElementById('vimeo-player-container');
-    const iframeTarget = document.getElementById('iframe-target');
-    const videoPlayBtn = document.getElementById('video-play-btn');
-    const videoPauseBtn = document.getElementById('video-pause-btn');
-    const videoPlaceholder = document.getElementById('video-placeholder');
-    const guideTextElement = document.getElementById('guide-text'); 
-
-    let mediaRecorder;
-    let audioChunks = [];
-    let currentSymbol = ''; 
-    let recordedAudioBlob = null; 
-    let currentVideoSrc = null; 
-
-    const commentSymbolDisplay = document.getElementById('comment-symbol-display');
-    const commentsList = document.getElementById('comments-list');
-    const recordButton = document.getElementById('record-button');
-    const stopButton = document.getElementById('stop-button');
-    const sendCommentButton = document.getElementById('send-comment-button');
-    const recordingPreview = document.getElementById('recording-preview');
-    const recordStatus = document.getElementById('record-status');
-    const commentToggleHeader = document.getElementById('comment-toggle-header');
-    const commentContentWrapper = document.getElementById('comment-content-wrapper');
-    const authContainer = document.getElementById('auth-container');
-    const authStatus = document.getElementById('auth-status');
-    const loginForm = document.getElementById('login-form');
-    const logoutBtn = document.getElementById('logout-btn');
-    const ipaChart = document.querySelector('.ipa-chart'); 
-    const guideDisplay = document.getElementById('guide-display'); 
-    
-    let currentUserId = null; 
-    let currentEmail = ''; 
-    let holdTimer = null; // Thêm biến này
-
-    // --- LOGIC XÁC THỰC (ĐĂNG NHẬP BẮT BUỘC) ---
-    async function handleLogin(e) {
-        e.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-
-        authStatus.textContent = 'Đang đăng nhập...';
+    <!-- KHU VỰC BẢNG IPA - ĐƯỢC ĐƯA XUỐNG DƯỚI TRÊN MOBILE -->
+    <div class="ipa-chart" style="display: none;">
         
-        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        <div class="tab-controls">
+            <button class="tab-button active" data-target="monophthongs">Nguyên âm đơn</button>
+            <button class="tab-button" data-target="diphthongs">Nguyên âm đôi</button>
+            <button class="tab-button" data-target="consonants">Phụ âm</button>
+        </div>
         
-        if (error) {
-            if (error.message.includes('Invalid login credentials')) {
-                 authStatus.textContent = 'Đăng nhập thất bại: Tài khoản hoặc mật khẩu không đúng.';
-            } else if (error.message.includes('Email not confirmed')) {
-                 authStatus.textContent = 'Lỗi: Email chưa được xác thực. Vui lòng kiểm tra email của bạn.';
-            } else {
-                 authStatus.textContent = `Lỗi đăng nhập: ${error.message}`;
-            }
-            return;
-        }
-
-        if (data.user) {
-            authStatus.textContent = `Đăng nhập thành công! Đang tải dữ liệu...`;
-        }
-    }
-
-    async function handleLogout() {
-        await sb.auth.signOut();
-    }
-
-    function updateCommentFormVisibility(user) {
-        const commentForm = document.getElementById('new-comment-form');
-        if (commentForm) {
-            commentForm.style.display = user ? 'flex' : 'none';
-        }
-        recordStatus.textContent = user ? '' : 'Vui lòng đăng nhập để gửi ghi âm.';
-    }
-
-    /**
-     * @description Cập nhật giao diện người dùng dựa trên trạng thái đăng nhập.
-     * @param {object | null} user - Đối tượng người dùng Supabase
-     */
-    function updateUIForUser(user) {
-        if (user) {
-            currentUserId = user.id;
-            currentEmail = user.email;
-            authContainer.style.display = 'none';
-            logoutBtn.style.display = 'block';
-            authStatus.textContent = `Đã đăng nhập: ${user.email} (ID: ${user.id.substring(0, 8)}...)`;
+        <div class="ipa-tabs-container">
             
-            ipaChart.style.display = 'grid'; 
-            guideDisplay.style.display = 'flex'; 
-
-            // Tải trạng thái hoàn thành ngay lập tức
-            loadCompletionStatus(user);
-
-        } else {
-            currentUserId = null;
-            currentEmail = '';
-            authContainer.style.display = 'block';
-            logoutBtn.style.display = 'none';
-authStatus.innerText = 'Tài khoản của NHƯ Email: hv1@gmail.com, Mật khẩu: hv1\n\nTài khoản của NHÂN Email: hv2@gmail.com, Mật khẩu: hv2';
-
-            ipaChart.style.display = 'none'; 
-            guideDisplay.style.display = 'none'; 
-            hideVideoAndShowPlaceholder();
+            <div class="ipa-tab-content active" id="monophthongs">
+                <h3>Monophthongs (Nguyên âm đơn)</h3>
+                <div class="ipa-section" id="monophthongs-section">
+                    
+                    <div class="ipa-symbol" data-symbol="i:" data-word="leave" data-audio="https://files.catbox.moe/b88x8g.mp3" data-guide="Âm /i:/ (i dài): Đọc kéo dài âm 'i', âm phát từ khoang miệng. Môi mở rộng hai bên như đang mỉm cười, lưỡi nâng cao lên." data-video-src="https://player.vimeo.com/video/799053416?h=4b62519b74">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">i:</span><span class="example">leave</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="i" data-word="live" data-audio="https://files.catbox.moe/clne4h.mp3" data-guide="Âm /ɪ/ (i ngắn): Giống âm 'i' tiếng Việt nhưng ngắn hơn, bật nhanh. Môi hơi mở sang hai bên, lưỡi hạ thấp." data-video-src="https://player.vimeo.com/video/799053148?h=be9fb2b856">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɪ</span><span class="example">live</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="u" data-word="put"data-audio="https://files.catbox.moe/69x88u.mp3" data-guide="Âm /ʊ/ (u ngắn): Giống âm 'ư' của tiếng Việt. Đẩy hơi rất ngắn từ cổ họng, không dùng môi. Môi hơi tròn, lưỡi hạ thấp." data-video-src="https://player.vimeo.com/video/799022336?h=57fc047f21">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʊ</span><span class="example">put</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="u:" data-word="pool" data-audio="https://files.catbox.moe/dknqa5.mp3" data-guide="Âm /u:/ (u dài): Kéo dài âm /ʊ/, âm phát ra từ khoang miệng. Môi tròn, lưỡi nâng cao lên." data-video-src="https://player.vimeo.com/video/799023321?h=724e2c9082">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">u:</span><span class="example">pool</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="e" data-word="pen" data-audio="https://files.catbox.moe/i5ehj5.mp3" data-guide="Âm /e/: Tương tự âm 'e' tiếng Việt nhưng ngắn hơn. Môi mở rộng sang hai bên (rộng hơn /ɪ/), lưỡi hạ thấp hơn /ɪ/." data-video-src="https://player.vimeo.com/video/799018681?h=c8a9d48c4d">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">e</span><span class="example">pen</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ə" data-word="a" data-audio="https://files.catbox.moe/bb0j1e.mp3" data-guide="Âm /ə/ (schwa): Âm 'ơ' ngắn, phát ngắn và nhẹ hơn 'ơ' tiếng Việt. Môi hơi mở rộng, lưỡi thả lỏng." data-video-src="https://player.vimeo.com/video/799019910?h=d367d2f7d2">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ə</span><span class="example">a</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɜ:" data-word="girl" data-audio="https://files.catbox.moe/b114z3.mp3" data-guide="Âm /ɜ:/ (ơ dài): Đọc là âm 'ơ' nhưng cong lưỡi. Phát âm /ə/ rồi cong lưỡi lên, âm từ khoang miệng. Môi hơi mở rộng, lưỡi cong lên chạm vòm miệng." data-video-src="https://player.vimeo.com/video/799020959?h=380b7874bb">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɜ:</span><span class="example">girl</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɔ:" data-word="door" data-audio="https://files.catbox.moe/zze6w6.mp3" data-guide="Âm /ɔ:/: Phát âm như âm 'o' tiếng Việt nhưng rồi cong lưỡi lên. Tròn môi, lưỡi cong lên chạm vòm miệng khi kết thúc." data-video-src="https://player.vimeo.com/video/799025423?h=3a82d409dd">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɔ:</span><span class="example">door</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="æ" data-word="man" data-audio="" data-guide="Âm /æ/ (a bẹt): Âm lai giữa 'a' và 'e'. Miệng mở rộng, môi dưới hạ thấp xuống. Lưỡi hạ rất thấp." data-video-src="https://player.vimeo.com/video/799028170?h=dc7f026866">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">æ</span><span class="example">man</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ʌ" data-word="cup" data-audio="https://files.catbox.moe/4lx65j.mp3" data-guide="Âm /ʌ/: Âm lai giữa 'ă' và 'ơ' (giống 'ă' hơn). Phát âm bật hơi. Miệng thu hẹp, lưỡi hơi nâng lên cao." data-video-src="https://player.vimeo.com/video/799025165?h=08f343bebe">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʌ</span><span class="example">cup</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɑ:" data-word="car" data-audio="https://files.catbox.moe/3bv9e5.mp3" data-guide="Âm /ɑ:/ (a dài): Âm 'a' đọc kéo dài, âm phát ra từ khoang miệng. Môi mở rộng, lưỡi hạ thấp." data-video-src="https://player.vimeo.com/video/799028410?h=2c77aa9867">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɑ:</span><span class="example">car</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɒ" data-word="hot" data-audio="https://files.catbox.moe/uxaxfi.mp3" data-guide="Âm /ɒ/ (o ngắn): Tương tự âm 'o' tiếng Việt nhưng phát âm ngắn hơn. Môi hơi tròn, lưỡi hạ thấp." data-video-src="https://player.vimeo.com/video/803333593?h=6adc718c73">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɒ</span><span class="example">hot</span>
+                    </div>
+                </div>
+            </div>
             
-            // Xóa trạng thái hoàn thành trên giao diện khi đăng xuất
-            symbols.forEach(symbolElement => {
-                symbolElement.classList.remove('completed');
-                const iconElement = symbolElement.querySelector('.completion-status-icon');
-                if (iconElement) iconElement.textContent = '☐';
-            });
-        }
-        
-        updateCommentFormVisibility(user); 
-    }
-
-    /**
-     * @description Lắng nghe sự thay đổi trạng thái xác thực để cập nhật giao diện.
-     * (Đây là cách Supabase khuyến nghị để kiểm tra session khi tải trang/refresh)
-     */
-    sb.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_OUT' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-             updateUIForUser(session?.user);
-        }
-    });
-
-    loginForm.addEventListener('submit', handleLogin);
-    logoutBtn.addEventListener('click', handleLogout);
-
-    // --- KẾT THÚC LOGIC XÁC THỰC ---
-
-
-    // [HÀM VIDEO CŨ] 
-    function buildVimeoUrl(src, autoplay = '1') {
-        if (!src) return null;
-        
-        const baseUrl = src.split('?')[0];
-        const urlParams = new URLSearchParams(src.split('?')[1]);
-        const hParam = urlParams.get('h');
-
-        const videoUrl = new URL(baseUrl);
-        if (hParam) {
-             videoUrl.searchParams.set('h', hParam);
-        }
-
-        videoUrl.searchParams.set('loop', '1');
-        videoUrl.searchParams.set('autoplay', autoplay); 
-        videoUrl.searchParams.set('controls', '0');
-        videoUrl.searchParams.set('title', '0');    
-        videoUrl.searchParams.set('byline', '0'); 
-        videoUrl.searchParams.set('api', '1');          
-        videoUrl.searchParams.set('player_id', 'vimeo-ifr'); 
-        
-        return videoUrl.href;
-    }
-
-    function loadOrUpdateIframe(src, autoplay = '1') {
-        if (!src) return;
-        
-        const finalUrl = buildVimeoUrl(src, autoplay);
-        
-        let iframe = iframeTarget.querySelector('iframe');
-        
-        if (!iframe) {
-            iframeTarget.innerHTML = ''; 
-            iframe = document.createElement('iframe');
-            iframe.title = "Video hướng dẫn";
-            iframe.frameBorder = "0";
-            iframe.allow = "autoplay; fullscreen; picture-in-picture; web-share";
-            iframe.allowFullscreen = true;
-            iframeTarget.appendChild(iframe);
-        }
-        
-        iframe.src = finalUrl;
-    }
-
-    function hideVideoAndShowPlaceholder() {
-        let iframe = iframeTarget.querySelector('iframe');
-        if (iframe && currentVideoSrc) {
-            iframe.src = buildVimeoUrl(currentVideoSrc, '0'); 
-        } else {
-             iframeTarget.innerHTML = '';
-        }
-        
-        iframeTarget.appendChild(videoPlaceholder);
-        vimeoPlayerContainer.classList.add('video-hidden');
-    }
-
-    videoPlayBtn.addEventListener('click', () => {
-        if (currentVideoSrc) {
-            vimeoPlayerContainer.classList.remove('video-hidden'); 
-            loadOrUpdateIframe(currentVideoSrc, '1'); 
-            videoPlayBtn.disabled = true;
-            videoPauseBtn.disabled = false;
-            videoPlaceholder.style.display = 'none'; 
-        }
-    });
-    
-    videoPauseBtn.addEventListener('click', () => {
-        if (currentVideoSrc) {
-            vimeoPlayerContainer.classList.remove('video-hidden'); 
-            loadOrUpdateIframe(currentVideoSrc, '0'); 
-            videoPlayBtn.disabled = false;
-            videoPauseBtn.disabled = true;
-            videoPlaceholder.style.display = 'block'; 
-        }
-    });
-
-    videoPlayBtn.disabled = true;
-    videoPauseBtn.disabled = true;
-    vimeoPlayerContainer.classList.add('video-hidden');
-
-    function getSafeSymbolName(symbol) {
-        let safeName = symbol.replace(/:/g, 'L');
-        
-        safeName = safeName.replace(/ʃ/g, 'sh');
-        safeName = safeName.replace(/ʒ/g, 'zh');
-        safeName = safeName.replace(/θ/g, 'th');
-        safeName = safeName.replace(/ð/g, 'dh');
-        safeName = safeName.replace(/ŋ/g, 'ng');
-        safeName = safeName.replace(/tʃ/g, 'ch');
-        safeName = safeName.replace(/dʒ/g, 'j');
-        safeName = safeName.replace(/ʌ/g, 'A');
-        safeName = safeName.replace(/ə/g, 'schwa');
-        safeName = safeName.replace(/ɪ/g, 'I'); 
-        safeName = safeName.replace(/ʊ/g, 'U'); 
-        safeName = safeName.replace(/ɜ/g, 'er');
-        safeName = safeName.replace(/ɔ/g, 'aw');
-        safeName = safeName.replace(/æ/g, 'aE');
-        safeName = safeName.replace(/ɑ/g, 'aLong');
-        safeName = safeName.replace(/ɒ/g, 'oShort');
-        safeName = safeName.replace(/\//g, '');
-        safeName = safeName.replace(/ /g, '_');
-        return safeName;
-    }
-
-
-    symbols.forEach(symbol => {
-        symbol.addEventListener('click', () => {
+            <div class="ipa-tab-content" id="diphthongs">
+                <h3>Diphthongs (Nguyên âm đôi)</h3>
+                <div class="ipa-section" id="diphthongs-section">
+                    
+                    <div class="ipa-symbol" data-symbol="ɪə" data-word="year" data-audio="" data-guide="Âm /ɪə/: Chuyển từ âm /ɪ/ rồi dần sang âm /ə/. Môi mở rộng dần. Lưỡi đẩy dần ra về phía trước." data-video-src="https://player.vimeo.com/video/799034185?h=e31a8f3fbc">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɪə</span><span class="example">year</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="eɪ" data-word="paper" data-audio="" data-guide="Âm /eɪ/: Đọc âm /e/ rồi chuyển dần sang âm /ɪ/. Môi dẹt dần sang hai bên. Lưỡi hướng dần lên trên." data-video-src="https://player.vimeo.com/video/805797587?h=71d1e256c0">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">eɪ</span><span class="example">paper</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ʊə" data-word="tourist" data-audio="" data-guide="Âm /ʊə/: Đọc như 'ua', chuyển từ âm /ʊ/ sang âm /ə/. Môi mở khá tròn, hơi bè, sau đó miệng hơi mở ra, lưỡi lùi về giữa." data-video-src="https://player.vimeo.com/video/799038699?h=082b944b89">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʊə</span><span class="example">tourist</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ɔɪ" data-word="boy" data-audio="" data-guide="Âm /ɔɪ/: Đọc âm /ɔ:/ rồi chuyển dần sang âm /ɪ/. Môi dẹt dần sang hai bên. Lưỡi nâng lên và đẩy dần về phía trước." data-video-src="https://player.vimeo.com/video/799034911?h=3af79a3759">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ɔɪ</span><span class="example">boy</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="əʊ" data-word="phone" data-audio="" data-guide="Âm /əʊ/: Đọc âm /ə/ rồi chuyển dần sang âm /ʊ/. Môi từ hơi mở đến hơi tròn. Lưỡi lùi dần về phía sau." data-video-src="https://player.vimeo.com/video/799037174?h=ca7ab60654">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">əʊ</span><span class="example">phone</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="eə" data-word="chair" data-audio="" data-guide="Âm /eə/: Đọc âm /e/ rồi chuyển dần sang âm /ə/. Môi hơi thu hẹp. Lưỡi thụt dần về phía sau." data-video-src="https://player.vimeo.com/video/799034426?h=c511125579">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">eə</span><span class="example">chair</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="aɪ" data-word="fine" data-audio="" data-guide="Âm /aɪ/: Đọc âm /ɑ:/ rồi chuyển dần sang âm /ɪ/. Môi dẹt dần sang hai bên. Lưỡi nâng lên và hơi đẩy dần về trước." data-video-src="https://player.vimeo.com/video/799035152?h=546b90fad7">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">aɪ</span><span class="example">fine</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="aʊ" data-word="house" data-audio="" data-guide="Âm /aʊ/: Đọc âm /ɑ:/ rồi chuyển dần sang âm /ʊ/. Môi tròn dần. Lưỡi hơi thụt về phía sau." data-video-src="https://player.vimeo.com/video/799038374?h=8b0f9926ce">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">aʊ</span><span class="example">house</span>
+                    </div>
+                </div>
+            </div>
             
-            if (ipaChart.style.display === 'none') {
-                 alert("Vui lòng đăng nhập để xem hướng dẫn phát âm.");
-                 return;
-            }
+            <div class="ipa-tab-content" id="consonants">
+                <h2>Consonants (Phụ âm)</h2>
+                <div class="ipa-section" id="consonants-section">
+                    
+                    <div class="ipa-symbol" data-symbol="p" data-word="pen" data-audio="" data-guide="Âm /p/: Giống âm 'P' của tiếng Việt. Hai môi chặn luồng không khí rồi bật ra. Dây thanh quản không rung." data-video-src="https://player.vimeo.com/video/799048874?h=6d240d8ebe">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">p</span><span class="example">pen</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="b" data-word="baby" data-audio="" data-guide="Âm /b/: Tương tự âm 'B' tiếng Việt. Hai môi chặn không khí rồi bật ra. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799049174?h=bb7d7e5b68">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">b</span><span class="example">baby</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="t" data-word="table" data-audio="" data-guide="Âm /t/: Giống âm 'T' tiếng Việt nhưng bật hơi mạnh hơn. Đặt đầu lưỡi dưới nướu, khi bật hơi đầu lưỡi chạm răng cửa dưới. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799049410?h=da9b27a30a">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">t</span><span class="example">table</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="d" data-word="door" data-audio="" data-guide="Âm /d/: Giống âm 'd' tiếng Việt, bật hơi mạnh hơn. Đặt đầu lưỡi dưới nướu, khi bật hơi đầu lưỡi chạm răng cửa dưới. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799049745?h=1a5bc1cae0">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">d</span><span class="example">door</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="tʃ" data-word="chip" data-audio="" data-guide="Âm /tʃ/: Tương tự âm 'CH' (như 'chè'). Môi hơi tròn, chu về phía trước. Lưỡi thẳng, chạm hàm dưới, khí thoát trên bề mặt lưỡi. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799050073?h=6251c6ee22">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">tʃ</span><span class="example">chip</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="dʒ" data-word="January" data-audio="" data-guide="Âm /dʒ/: Phát âm giống /tʃ/ nhưng có rung dây thanh quản. Môi hơi tròn, chu về trước. Lưỡi thẳng, chạm hàm dưới." data-video-src="https://player.vimeo.com/video/799050433?h=926969597d">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">dʒ</span><span class="example">January</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="k" data-word="key" data-audio="" data-guide="Âm /k/: Giống âm 'K' tiếng Việt nhưng bật hơi mạnh. Nâng phần sau của lưỡi chạm ngạc mềm, hạ thấp khi luồng khí bật ra. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799716570?h=e9d4ed8b97">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">k</span><span class="example">key</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="g" data-word="girl" data-audio="" data-guide="Âm /g/: Như âm 'G' của tiếng Việt. Nâng phần sau của lưỡi chạm ngạc mềm, hạ thấp khi luồng khí bật ra. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799051365?h=1ce719e473">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">g</span><span class="example">girl</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="f" data-word="fan" data-audio="" data-guide="Âm /f/: Tương tự âm 'PH' tiếng Việt. Hàm trên chạm nhẹ vào môi dưới." data-video-src="https://player.vimeo.com/video/799051556?h=31b489851a">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">f</span><span class="example">fan</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="v" data-word="van" data-audio="" data-guide="Âm /v/: Như âm 'V' tiếng Việt. Hàm trên chạm nhẹ vào môi dưới." data-video-src="https://player.vimeo.com/video/799051845?h=8731ac54df">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">v</span><span class="example">van</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="θ" data-word="think" data-audio="" data-guide="Âm /θ/: Đặt đầu lưỡi ở giữa hai hàm răng. Để luồng khí thoát ra giữa lưỡi và 2 hàm răng. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799713097?h=69e9fc9137">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">θ</span><span class="example">think</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ð" data-word="this" data-audio="" data-guide="Âm /ð/: Đặt đầu lưỡi ở giữa hai hàm răng. Để luồng khí thoát ra giữa lưỡi và 2 hàm răng. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799048470?h=193730697e">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ð</span><span class="example">this</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="s" data-word="sun" data-audio="" data-guide="Âm /s/: Như âm 'S' (như 'sao'). Lưỡi đặt nhẹ lên hàm trên, luồng khí thoát từ giữa mặt lưỡi và lợi. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799713752?h=b29065bb07">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">s</span><span class="example">sun</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="z" data-word="zoo" data-audio="" data-guide="Âm /z/: Tương tự /s/. Lưỡi đặt nhẹ lên hàm trên, luồng khí thoát từ giữa mặt lưỡi và lợi. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799713912?h=9a13ffc9d5">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">z</span><span class="example">zoo</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ʃ" data-word="shoes" data-audio="" data-guide="Âm /ʃ/: Giống âm 'S' (như 'sushi'). Môi chu ra, tròn. Mặt lưLưỡi chạm lợi hàm trên, nâng phần trước của lưỡi lên." data-video-src="https://player.vimeo.com/video/799714545?h=9ccddda2fd">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʃ</span><span class="example">shoes</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ʒ" data-word="vision" data-audio="" data-guide="Âm /ʒ/: Tương tự /ʃ/. Môi chu ra, tròn. Mặt lưỡi chạm lợi hàm trên, nâng phần trước của lưỡi lên. Đọc rung thanh quản." data-video-src="https://player.vimeo.com/video/799714707?h=68f76b7ceb">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ʒ</span><span class="example">vision</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="m" data-word="mouth" data-audio="" data-guide="Âm /m/: Giống âm 'M' tiếng Việt. Hai môi ngậm lại, luồng khí thoát ra bằng mũi." data-video-src="https://player.vimeo.com/video/799714910?h=66685b8082">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">m</span><span class="example">mouth</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="n" data-word="nose" data-audio="" data-guide="Âm /n/: Như âm 'N'. Môi hé, đầu lưỡi chạm lợi hàm trên, chặn để khí phát ra từ mũi." data-video-src="https://player.vimeo.com/video/799715128?h=ee57d25a7f">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">n</span><span class="example">nose</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="ŋ" data-word="ring" data-audio="" data-guide="Âm /ŋ/: Giống âm 'NG' (như 'vàng'). Chặn khí ở lưỡi, môi hé, khí phát ra từ mũi. Phần sau của lưỡi nâng lên chạm ngạc mềm. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799715291?h=4fb6959d60">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">ŋ</span><span class="example">ring</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="h" data-word="hear" data-audio="" data-guide="Âm /h/: Như âm 'H' tiếng Việt. Môi hé nửa, lưỡi hạ thấp để khí thoát ra. Thanh quản không rung." data-video-src="https://player.vimeo.com/video/799715413?h=eaf39b6eb0">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">h</span><span class="example">hear</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="l" data-word="letter" data-audio="" data-guide="Âm /l/: Cong lưỡi từ từ, chạm răng hàm trên. Môi mở rộng, đầu lưỡi cong lên đặt vào lợi hàm trên. Thanh quản rung." data-video-src="https://player.vimeo.com/video/799715572?h=41d393086b">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">l</span><span class="example">letter</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="r" data-word="rain" data-audio="" data-guide="Âm /r/: Khác 'R' tiếng Việt. Cong lưỡi vào trong, môi tròn, hơi chu về phía trước. Khi khí thoát ra, lưỡi thả lỏng, môi mở rộng." data-video-src="https://player.vimeo.com/video/799715754?h=788187cd38">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">r</span><span class="example">rain</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="w" data-word="window" data-audio="" data-guide="Âm /w/: Môi tròn, chu về phía trước, lưỡi thả lỏng. Khi luồng khí phát ra, môi mở rộng, lưỡi vẫn thả lỏng." data-video-src="https://player.vimeo.com/video/799715924?h=bed60cb452">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">w</span><span class="example">window</span>
+                    </div>
+                    
+                    <div class="ipa-symbol" data-symbol="j" data-word="yellow" data-audio="" data-guide="Âm /j/: Giống âm 'd'/'gi' của Việt Nam (như trong 'du lịch'). Môi hơi mở, phần trước lưỡi nâng lên gần ngạc cứng, luồng khí đi ra." data-video-src="https://player.vimeo.com/video/799716079?h=d87ed66f8f">
+                        <div class="completion-container">
+                            <span class="completion-status-icon">☐</span>
+                        </div>
+                        <span class="symbol">j</span><span class="example">yellow</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            const videoSrc = symbol.dataset.videoSrc;
-            currentVideoSrc = videoSrc; 
-            
-            const guideText = symbol.dataset.guide;
-
-            if (videoSrc) {
-                vimeoPlayerContainer.classList.remove('video-hidden');
-                loadOrUpdateIframe(currentVideoSrc, '1'); 
-                videoPlaceholder.style.display = 'none'; 
-                
-                videoPlayBtn.disabled = true; 
-                videoPauseBtn.disabled = false;
-                
-                guideTextElement.textContent = guideText || "Chưa có hướng dẫn cho ký tự này.";
-                
-            } else {
-                hideVideoAndShowPlaceholder(); 
-                guideTextElement.textContent = guideText || "Chưa có hướng dẫn cho ký tự này.";
-                
-                videoPlayBtn.disabled = true; 
-                videoPauseBtn.disabled = true;
-            }
-
-            symbols.forEach(s => s.classList.remove('active'));
-            symbol.classList.add('active');
-            
-            const originalSymbol = symbol.dataset.symbol; 
-            currentSymbol = originalSymbol; 
-            commentSymbolDisplay.textContent = originalSymbol;
-            
-            commentToggleHeader.classList.remove('collapsed');
-            commentContentWrapper.classList.remove('collapsed');
-
-            loadComments(currentSymbol); 
-            resetCommentForm();
-            
-            // [BỔ SUNG] Chức năng cuộn lên đầu khu vực hướng dẫn cho điện thoại
-            if (window.innerWidth < 768) {
-                const guideDisplay = document.getElementById('guide-display');
-                if (guideDisplay) {
-                    guideDisplay.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }
-        });
-    });
-
-    commentToggleHeader.addEventListener('click', () => {
-        commentToggleHeader.classList.toggle('collapsed');
-        commentContentWrapper.classList.toggle('collapsed');
-    });
-
-    // --- LOGIC HOÀN THÀNH KÝ TỰ ---
-    
-    async function loadCompletionStatus(user) {
-        if (!user) {
-            symbols.forEach(symbolElement => {
-                symbolElement.classList.remove('completed');
-                const iconElement = symbolElement.querySelector('.completion-status-icon');
-                if (iconElement) iconElement.textContent = '☐';
-            });
-            return;
-        }
-        
-        const userId = user.id;
-
-        try {
-            const { data, error } = await sb
-                .from('ipa_completions')
-                .select('symbol, completed')
-                .eq('user_id', userId);
-
-            if (error) throw error;
-
-            symbols.forEach(symbolElement => {
-                const ipaKey = symbolElement.dataset.symbol;
-                const match = data.find(item => item.symbol === ipaKey && item.completed);
-                const iconElement = symbolElement.querySelector('.completion-status-icon');
-
-                symbolElement.classList.remove('completed');
-                if (iconElement) iconElement.textContent = '☐';
-                
-                if (match) {
-                    symbolElement.classList.add('completed');
-                    if (iconElement) iconElement.textContent = '✔';
-                }
-            });
-
-        } catch (e) {
-            console.error('Lỗi khi tải trạng thái hoàn thành từ Supabase (Kiểm tra RLS SELECT và cột user_id trên ipa_completions):', e);
-        }
-    }
-
-    async function saveCompletionStatus(symbol, isCompleted) {
-        const userId = currentUserId; 
-        
-        if (!userId) {
-            alert("Vui lòng đăng nhập để đánh dấu hoàn thành!");
-            return;
-        }
-        
-        const statusData = {
-            user_id: userId,
-            symbol: symbol,
-            completed: isCompleted,
-            updated_at: new Date().toISOString()
-        };
-
-        try {
-            const { error } = await sb
-                .from('ipa_completions')
-                .upsert(statusData, { onConflict: 'user_id, symbol' }); 
-
-            if (error) {
-                console.error('Lỗi khi lưu trạng thái hoàn thành vào Supabase (Kiểm tra chính sách RLS UPDATE/INSERT trên ipa_completions):', error);
-            }
-        } catch (e) {
-            console.error('Lỗi ngoại lệ khi lưu trạng thái hoàn thành:', e);
-        }
-    }
-
-    function toggleCompletion(symbolElement) {
-        const ipaKey = symbolElement.dataset.symbol;
-        const isCompleted = symbolElement.classList.contains('completed');
-        const icon = symbolElement.querySelector('.completion-status-icon');
-
-        if (!currentUserId) {
-            alert("Vui lòng đăng nhập để đánh dấu hoàn thành!");
-            return;
-        }
-        
-        let action = isCompleted ? "hủy đánh dấu hoàn thành" : "đánh dấu hoàn thành";
-        
-        const enteredPassword = prompt(`Vui lòng nhập mật khẩu Admin để ${action} cho ký tự /${ipaKey}/:`);
-        
-        if (enteredPassword === ADMIN_PASSWORD) {
-            const newCompletedState = !isCompleted;
-            
-            if (newCompletedState) {
-                symbolElement.classList.add('completed');
-                if (icon) icon.textContent = '✔';
-            } else {
-                symbolElement.classList.remove('completed');
-                if (icon) icon.textContent = '☐';
-            }
-            
-            saveCompletionStatus(ipaKey, newCompletedState);
-
-        } else if (enteredPassword !== null) {
-            alert("Mật khẩu không đúng.");
-        }
-    }
-
-    completionIcons.forEach(iconContainer => {
-        
-        const parentSymbol = iconContainer.closest('.ipa-symbol');
-        if (!parentSymbol) return;
-
-        // Bắt đầu giữ chuột
-        iconContainer.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-            
-            // Clear bất kỳ timer cũ nào nếu có lỗi
-            if (holdTimer) clearTimeout(holdTimer);
-
-            // Thiết lập timer 3 giây (3000ms)
-            holdTimer = setTimeout(() => {
-                holdTimer = null; // Reset timer sau khi kích hoạt
-                
-                // Kích hoạt logic hoàn thành chỉ khi giữ đủ 3 giây
-                toggleCompletion(parentSymbol);
-                
-                // Tạm thời vô hiệu hóa con trỏ để tránh kích hoạt lại ngay lập tức
-                iconContainer.style.pointerEvents = 'none';
-                setTimeout(() => {
-                    iconContainer.style.pointerEvents = 'auto';
-                }, 500); // 0.5 giây chờ để tránh double-click/nhả chuột nhanh
-                
-            }, 3000); // 3 giây
-        });
-
-        // Nhả chuột (ngắt quá trình giữ)
-        iconContainer.addEventListener('mouseup', (e) => {
-            e.stopPropagation();
-            if (holdTimer) {
-                clearTimeout(holdTimer);
-                holdTimer = null;
-            }
-        });
-
-        // Rê chuột ra khỏi khu vực (ngắt quá trình giữ)
-        iconContainer.addEventListener('mouseleave', (e) => {
-            e.stopPropagation();
-            if (holdTimer) {
-                clearTimeout(holdTimer);
-                holdTimer = null;
-            }
-        });
-    });
-
-    // --- CÁC HÀM XỬ LÝ GHI ÂM/SUPABASE ---
-
-    // 1. BẮT ĐẦU GHI ÂM
-    recordButton.addEventListener('click', async () => {
-        if (!currentUserId) {
-             alert("Vui lòng đăng nhập để gửi ghi âm.");
-             return;
-        }
-
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-
-            mediaRecorder.onstop = () => {
-                recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' }); 
-                const audioUrl = URL.createObjectURL(recordedAudioBlob);
-                recordingPreview.src = audioUrl; 
-                recordingPreview.style.display = 'block';
-
-                recordButton.disabled = false;
-                stopButton.disabled = true;
-                sendCommentButton.disabled = false;
-                recordStatus.textContent = "Sẵn sàng để gửi! Bạn có thể nghe thử ở trên.";
-            };
-
-            audioChunks = []; 
-            recordedAudioBlob = null;
-            mediaRecorder.start();
-
-            recordButton.disabled = true;
-            stopButton.disabled = false;
-            sendCommentButton.disabled = true;
-            recordingPreview.style.display = 'none';
-            recordStatus.textContent = "🔴 Đang ghi âm... Bấm 'Dừng' khi xong.";
-
-        } catch (err) {
-            console.error("Lỗi khi lấy micro:", err);
-            recordStatus.textContent = "Không thể truy cập micro. Vui lòng cho phép quyền truy cập.";
-        }
-    });
-
-    // 2. DỪNG GHI ÂM
-    stopButton.addEventListener('click', () => {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-        }
-    });
-
-    // 3. GỬI ghi âm VÀ UPLOAD
-    sendCommentButton.addEventListener('click', async () => {
-        if (!currentUserId) {
-            alert("Vui lòng đăng nhập để gửi ghi âm.");
-            return;
-        }
-        
-        if (!recordedAudioBlob) {
-            alert("Bạn chưa ghi âm.");
-            return;
-        }
-
-        const MAX_FILE_SIZE_BYTES = 500 * 1024; 
-        
-        if (recordedAudioBlob.size > MAX_FILE_SIZE_BYTES) {
-            alert(`File ghi âm quá lớn (${(recordedAudioBlob.size / 1024).toFixed(1)} KB). Kích thước tối đa là 500 KB.`);
-            recordStatus.textContent = "❌ File quá lớn. Vui lòng ghi âm ngắn hơn.";
-            sendCommentButton.disabled = false;
-            return;
-        }
-
-        sendCommentButton.disabled = true;
-        recordStatus.textContent = "Đang tải lên Supabase, vui lòng chờ...";
-        let audioURL = null;
-        let audioPath = null;
-        
-        const safeSymbolName = getSafeSymbolName(currentSymbol); 
-
-        try {
-            const uniqueFileName = `${currentUserId.substring(0, 8)}_${Date.now()}.webm`; 
-            audioPath = `${safeSymbolName}/${uniqueFileName}`; 
-            
-            // 1. Tải file lên Storage
-            const { error: uploadError } = await sb.storage
-                .from(AUDIO_BUCKET_NAME)
-                .upload(audioPath, recordedAudioBlob, {
-                    cacheControl: '3600',
-                    upsert: false
-                });
-
-            if (uploadError) throw uploadError;
-
-            // Lấy URL công khai
-            const supabaseRef = SUPABASE_URL.split('://')[1].split('.')[0]; 
-            audioURL = `https://${supabaseRef}.supabase.co/storage/v1/object/public/${AUDIO_BUCKET_NAME}/${audioPath}`;
-
-            if (!audioURL || audioURL.includes('null')) {
-                throw new Error("Lỗi: Không thể xây dựng URL hợp lệ.");
-            }
-
-            // 2. Chèn URL vào DB
-            const { error: dbError } = await sb
-                .from('comments')
-                .insert([
-                    { 
-                        symbol: currentSymbol, 
-                        audio_url: audioURL,
-                        user_id: currentUserId, 
-                        created_at: new Date().toISOString()
-                    }
-                ]);
-
-            if (dbError) throw dbError;
-
-            recordStatus.textContent = "Gửi thành công!";
-            resetCommentForm();
-            loadComments(currentSymbol); 
-
-        } catch (err) {
-            console.error("Lỗi khi gửi ghi âm (Kiểm tra RLS INSERT và cột user_id trên comments):", err.message);
-            recordStatus.textContent = `Gửi thất bại: ${err.message}`;
-            sendCommentButton.disabled = false; 
-            
-            if (audioPath) {
-                 sb.storage.from(AUDIO_BUCKET_NAME).remove([audioPath]);
-            }
-        }
-    });
-
-    // 4. HÀM TẢI ghi âm TỪ SUPABASE (Đã bỏ chặn kiểm tra đăng nhập)
-    async function loadComments(symbol) {
-        
-        if (!symbol) return; 
-
-        commentsList.innerHTML = 'Đang tải ghi âm...'; 
-        
-        // Hiển thị cảnh báo gửi, nhưng vẫn cho phép tải
-        if (!currentUserId) {
-            commentsList.innerHTML = '<p>Ghi âm đang tải (Vui lòng đăng nhập để gửi).</p>';
-        }
-
-        try {
-            const { data, error } = await sb
-                .from('comments')
-                .select('*')
-                .eq('symbol', symbol)
-                .order('created_at', { ascending: false }); 
-            
-            if (error) throw error;
-            
-            commentsList.innerHTML = ''; 
-            
-            if (data.length === 0) {
-                commentsList.innerHTML = '<p>Chưa có ghi âm nào. Practice makes perfect</p>';
-                return;
-            }
-
-            data.forEach(comment => {
-                displayComment(comment);
-            });
-
-        } catch (err) {
-            console.error("Lỗi khi tải ghi âm:", err.message);
-            commentsList.innerHTML = '<p>Không thể tải ghi âm. Kiểm tra RLS SELECT trên comments.</p>';
-        }
-    }
-
-    // 5. HÀM HIỂN THỊ 1 ghi âm (Đã kiểm tra URL)
-    function displayComment(data) {
-        const commentDiv = document.createElement('div');
-        commentDiv.className = 'comment-item';
-
-        const senderInfo = document.createElement('div');
-        senderInfo.className = 'comment-sender';
-        
-        let senderDisplay = 'Ẩn danh';
-        if (data.user_id) {
-             senderDisplay = `Người dùng: ID ${data.user_id.substring(0, 8)}...`; 
-        }
-        senderInfo.textContent = senderDisplay;
-        commentDiv.appendChild(senderInfo);
-
-
-        if (data.text && data.text.trim() !== "") {
-            const textEl = document.createElement('p');
-            textEl.textContent = data.text;
-            commentDiv.appendChild(textEl);
-        }
-
-        // [QUAN TRỌNG] Logic hiển thị audio
-        if (data.audio_url) {
-            const audioEl = document.createElement('audio');
-            audioEl.controls = true;
-            audioEl.src = data.audio_url; 
-            
-            // Kiểm tra URL có bị hỏng không (tùy chọn)
-            if (data.audio_url.length > 5) {
-                commentDiv.appendChild(audioEl);
-            } else {
-                 // Ghi nhận lỗi hiển thị audio
-                 const errorEl = document.createElement('div');
-                 errorEl.textContent = "(Lỗi: URL ghi âm bị hỏng)";
-                 errorEl.style.color = 'red';
-                 commentDiv.appendChild(errorEl);
-            }
-        }
-
-        if (data.created_at) { 
-            const timeEl = document.createElement('div');
-            timeEl.className = 'comment-timestamp';
-            timeEl.textContent = new Date(data.created_at).toLocaleString("vi-VN");
-            commentDiv.appendChild(timeEl);
-        }
-
-        if (data.audio_url || (data.text && data.text.trim() !== "")) {
-             commentsList.appendChild(commentDiv);
-        }
-    }
-
-    // 6. HÀM RESET FORM
-    function resetCommentForm() {
-        recordingPreview.style.display = 'none';
-        recordingPreview.src = '';
-        recordStatus.textContent = '';
-        
-        audioChunks = [];
-        recordedAudioBlob = null;
-        
-        recordButton.disabled = false;
-        stopButton.disabled = true;
-        sendCommentButton.disabled = true; 
-    }
-    
-    // --- KHỞI TẠO VÀ TẢI TRẠNG THÁI NGAY LẬP TỨC ---
-    // Giữ lại hàm initialLoad nhưng đảm bảo nó được gọi.
-    async function initialLoad() {
-        const { data: { session } } = await sb.auth.getSession();
-        updateUIForUser(session?.user);
-    }
-
-    // --- LOGIC TAB/SWIPE NGANG (MOBILE) ---
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const ipaTabsContainer = document.querySelector('.ipa-tabs-container');
-    const ipaTabContents = document.querySelectorAll('.ipa-tab-content');
-
-    function activateTab(targetId) {
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        ipaTabContents.forEach(content => content.classList.remove('active'));
-
-        const activeButton = document.querySelector(`.tab-button[data-target="${targetId}"]`);
-        const activeContent = document.getElementById(targetId);
-
-        if (activeButton) activeButton.classList.add('active');
-        if (activeContent) activeContent.classList.add('active');
-        
-        // Cuộn ngang container để hiển thị tab tương ứng (Dùng scrollLeft cho hiệu ứng)
-        const contentIndex = Array.from(ipaTabContents).findIndex(el => el.id === targetId);
-        if (contentIndex !== -1) {
-            ipaTabsContainer.scrollLeft = contentIndex * ipaTabsContainer.clientWidth;
-        }
-    }
-
-    tabButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
-            const targetId = e.target.dataset.target;
-            activateTab(targetId);
-        });
-    });
-    
-    // Đảm bảo tab đầu tiên được hiển thị khi tải trang
-    activateTab('monophthongs');
-    
-    // Chú ý: Hàm loadCompletionStatus đã được cập nhật logic ở trên không cần thay đổi thêm gì.
-
-    // --- KẾT THÚC LOGIC TAB/SWIPE NGANG ---
-    // Gọi hàm initialLoad để kiểm tra session ngay khi DOMContentLoaded
-    initialLoad();
-
-
-});
+    <script src="scriptphonetics.js"></script>
+</body>
+</html>
